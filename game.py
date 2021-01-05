@@ -108,8 +108,9 @@ class Game:
 			 # check if there is enemy piece in the destination
 			destination_piece = self.board[destination[0]][destination[1]]
 			if destination_piece is None:
-				if (self.is_piece_white(piece) and self.en_passant_coord_black != destination) or (self.is_piece_black(piece) and self.en_passant_coord_white != destination))
-				raise ValueError('There is no piece in the destination square to capture')
+				# en passant possibility
+				if (self.is_piece_white(piece) and self.en_passant_coord_black != destination) or (self.is_piece_black(piece) and self.en_passant_coord_white != destination):
+					raise ValueError('There is no piece in the destination square to capture')
 			elif destination_piece[0] == 'w':
 				raise ValueError("You can't capture your own piece")
 
@@ -147,7 +148,12 @@ class Game:
 				if self.turn == self.WHITE:
 					for i in range(7, destination[0], -1):
 						piece = self.board[i][destination[1]] 
-						if piece is not None and ((self.turn == self.WHITE and self.is_piece_white(piece)) or (self.turn == self.BLACK and self.is_piece_black(piece))) :
+						if piece is not None and self.is_piece_white(piece):
+							piece_coord = (i, destination[1])
+				else:
+					for i in range(1, destination[0]):
+						piece = self.board[i][destination[1]] 
+						if piece is not None and self.is_piece_black(piece):
 							piece_coord = (i, destination[1])
 				print('piec:', piece_coord)
 				
