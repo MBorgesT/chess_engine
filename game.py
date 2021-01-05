@@ -42,7 +42,7 @@ class Game:
 	def is_piece_black(self, piece):
 		return piece[0] == 'b'
 
-	def find_pawn(self, column, limit, color):
+	def find_pawn(self, color, column, limit):
 		piece_coord = None
 		if color == self.WHITE:
 			for i in range(6, limit, -1):
@@ -59,8 +59,41 @@ class Game:
 			
 		return piece_coord
 
-	def find_rook(self, color, row = None, column = None):
-		raise Exception('Not yet implemented')
+	def find_rook(self, color, row = None, column = None, destination = None):
+		if row is None and column is None:
+
+			if destination is None:
+				raise Exception('The destination is needed when no row or column is informed')
+			
+			# going throw columns
+			for col in range(8):
+				piece = self.board[destination[0]][col]
+				if piece is not None and piece[1] == 'r' and ((self.is_piece_white(piece) and color == self.WHITE) or (self.is_piece_black(piece) and color == self.BLACK)):
+					return (destination[0], col)
+			
+			# going throw rows
+			for row in range(8):
+				piece = self.board[row][destination[1]]
+				if piece is not None and piece[1] == 'r' and ((self.is_piece_white(piece) and color == self.WHITE) or (self.is_piece_black(piece) and color == self.BLACK)):
+					return (row, destination[1])
+			
+			raise Exception('Rook not found. Check for bugs')
+
+		elif row is not None:
+
+			# if we know the row the rook is
+			for i in range(8):
+				piece = self.board[row][i]
+				if piece is not None and piece[1] == 'r' and ((self.is_piece_white(piece) and color == self.WHITE) or (self.is_piece_black(piece) and color == self.BLACK)):
+					return (row, i)
+
+		elif column is not None:
+			
+			# if we know the column the rook is
+			for i in range(8):
+				piece = self.board[i][column]
+				if piece is not None and piece[1] == 'r' and ((self.is_piece_white and color == self.WHITE) or (self.is_piece_black and color == self.BLACK)):
+					return (i, column)
 
 	def validate_move_generates_check(self, piece_coord, destination):
 		raise Exception('Not yet implemented')
@@ -170,18 +203,29 @@ class Game:
 		piece_coord = None
 
 		if moviment[0].isupper():
-			'''
 			if moviment[0] == 'R':
 				# rook
-				if moviment[1].isalpha() and moviment[2].isdiit():
+				if moviment[1].isalpha() and moviment[2].isdigit():
 					# not in the same column or row
+					destination = (self.get_row(moviment[2]), self.get_column(moviment[1]))
+					
+					piece_coord = self.find_rook(color = self.turn, destination = destination)
 				elif moviment[1].isalpha() and moviment[2].isalpha():
-					column = ord(moviment[1] - 97)
-				elif moviment[1].isdigit() and moviemnt[2].isalpha():
+					# in the same row
+					destination = (self.get_row(moviment[3]), self.get_column(moviment[2]))
+					column = self.get_column(moviment[1])
+
+					piece_coord = self.find_rook(color = self.turn, column = column)
+				elif moviment[1].isdigit() and moviment[2].isalpha():
 					# in the same column
+					destination = (self.get_row(moviment[3]), self.get_column(moviment[2]))
+					row = self.get_row(moviment[1])
+
+					piece_coord = self.find_rook(color = self.turn, row = row)
 				else:
 					raise ValueError('Invalid moviment')
-			'''
+
+				print(piece_coord)
 
 		else:
 			# pawn 
@@ -189,13 +233,13 @@ class Game:
 				# capture with pawn
 				destination = (self.get_row(moviment[3]), self.get_column(moviment[2]))
 				origin_column = ord(moviment[0]) - 97
-				piece_coord = self.find_pawn(column = origin_column, limit = destination[0], color = self.turn)
+				piece_coord = self.find_pawn(color = self.turn, column = origin_column, limit = destination[0])
 
 				self.validate_capture_with_pawn(piece_coord, destination)
 			else:
 				# pawn move
 				destination = (self.get_row(moviment[1]), self.get_column(moviment[0]))
-				piece_coord = self.find_pawn(column = destination[1], limit = destination[0], color = self.turn)
+				piece_coord = self.find_pawn(color = self.turn, column = destination[1], limit = destination[0])
 				
 				self.validate_pawn_move(piece_coord, destination)
 		

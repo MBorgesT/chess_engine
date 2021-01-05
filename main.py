@@ -11,6 +11,4 @@ game = Game()
 
 draw_board(game.get_board())
 
-move_piece('e4')
-move_piece('d5')
-move_piece('exd5')
+move_piece('Rbc4')
