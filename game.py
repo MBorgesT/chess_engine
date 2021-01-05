@@ -138,15 +138,27 @@ class Game:
 			raise Exception('Not implemented yet')
 
 		else:
-			# pawn moviment
+			# pawn 
 			if 'x' in moviment:
-				raise Exception('Not implemented yet')
+				# pawn capture
+				destination = (abs(int(moviment[3]) - 8), ord(moviment[2]) - 97)
+				origin_column = ord(moviment[0]) - 97
+				if self.turn == self.WHITE:
+					for i in range(6, destination[0], -1):
+						print(i)
+						piece = self.board[i][origin_column] 
+						if piece is not None and self.is_piece_white(piece):
+							piece_coord = (i, origin_column)
+				else:
+					for i in range(1, destination[0]):
+						piece = self.board[i][origin_column] 
+						if piece is not None and self.is_piece_black(piece):
+							piece_coord = (i, origin_column)
 			else:
 				# pawn move
 				destination = (abs(int(moviment[1]) - 8), ord(moviment[0]) - 97)
-				print('dest:', destination)
 				if self.turn == self.WHITE:
-					for i in range(7, destination[0], -1):
+					for i in range(6, destination[0], -1):
 						piece = self.board[i][destination[1]] 
 						if piece is not None and self.is_piece_white(piece):
 							piece_coord = (i, destination[1])
@@ -155,9 +167,11 @@ class Game:
 						piece = self.board[i][destination[1]] 
 						if piece is not None and self.is_piece_black(piece):
 							piece_coord = (i, destination[1])
-				print('piec:', piece_coord)
 				
 				self.validate_pawn_move(piece_coord, destination)
+		
+		print('dest:', destination)
+		print('orgn:', piece_coord)
 
 		self.board[destination[0]][destination[1]] = self.board[piece_coord[0]][piece_coord[1]]
 		self.board[piece_coord[0]][piece_coord[1]] = None
