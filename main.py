@@ -6,10 +6,11 @@ game = Game()
 draw_board(game.get_board())
 
 input()
+game.move_piece('e4')
+draw_board(game.get_board())
 
-origin_square = (6, 4)
-destination_square = (4, 4)
+game.print_board()
 
-game.move_pawn(origin_square, destination_square)
-
-draw_board(game.get_board(), origin_square, destination_square)
+input()
+game.move_piece('e5')
+draw_board(game.get_board())
