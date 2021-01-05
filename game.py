@@ -36,6 +36,23 @@ class Game:
 	def is_piece_black(self, piece):
 		return piece[0] == 'b'
 
+	def find_pawn(self, column, limit, color):
+		piece_coord = None
+		if color == self.WHITE:
+			for i in range(6, limit, -1):
+				piece = self.board[i][column] 
+				if piece is not None and self.is_piece_white(piece):
+					piece_coord = (i, column)
+					# it's necessary not to break here because there may be double pawns in a column
+		else:
+			for i in range(1, limit):
+				piece = self.board[i][column] 
+				if piece is not None and self.is_piece_black(piece):
+					piece_coord = (i, column)
+					# it's necessary not to break here because there may be double pawns in a column 
+			
+		return piece_coord
+
 	def validate_move_generates_check(self, piece_coord, destination):
 		raise Exception('Not yet implemented')
 
@@ -137,14 +154,14 @@ class Game:
 		if piece[1] != 'r':
 			raise ValueError('Wrong piece passed as parameter:', piece)
 
-		if piece_coord[0] != destination[0] and piece_coord[1] != destination[1]:
+		#if piece_coord[0] != destination[0] and piece_coord[1] != destination[1]:
 			
 	def move_piece(self, moviment):
 		destination = None
 		piece_coord = None
 
 		if moviment[0].isupper():
-
+			'''
 			if moviment[0] == 'R':
 				# rook
 				if moviment[1].isalpha() and moviment[2].isdiit():
@@ -156,6 +173,7 @@ class Game:
 					# in the same column
 				else:
 					raise ValueError('Invalid moviment')
+			'''
 
 		else:
 			# pawn 
@@ -163,34 +181,13 @@ class Game:
 				# capture with pawn
 				destination = (abs(int(moviment[3]) - 8), ord(moviment[2]) - 97)
 				origin_column = ord(moviment[0]) - 97
-				if self.turn == self.WHITE:
-					for i in range(6, destination[0], -1):
-						print(i)
-						piece = self.board[i][origin_column] 
-						if piece is not None and self.is_piece_white(piece):
-							piece_coord = (i, origin_column)
-							# it's necessary not to break here because there may be double pawns in a column
-				else:
-					for i in range(1, destination[0]):
-						piece = self.board[i][origin_column] 
-						if piece is not None and self.is_piece_black(piece):
-							piece_coord = (i, origin_column)
-							# it's necessary not to break here because there may be double pawns in a column
+				piece_coord = self.find_pawn(column = origin_column, limit = destination[0], color = self.turn)
+
+				self.validate_capture_with_pawn(piece_coord, destination)
 			else:
 				# pawn move
 				destination = (abs(int(moviment[1]) - 8), ord(moviment[0]) - 97)
-				if self.turn == self.WHITE:
-					for i in range(6, destination[0], -1):
-						piece = self.board[i][destination[1]] 
-						if piece is not None and self.is_piece_white(piece):
-							piece_coord = (i, destination[1])
-							# it's necessary not to break here because there may be double pawns in a column
-				else:
-					for i in range(1, destination[0]):
-						piece = self.board[i][destination[1]] 
-						if piece is not None and self.is_piece_black(piece):
-							piece_coord = (i, destination[1])
-							# it's necessary not to break here because there may be double pawns in a column
+				piece_coord = self.find_pawn(column = destination[1], limit = destination[0], color = self.turn)
 				
 				self.validate_pawn_move(piece_coord, destination)
 		
