@@ -263,20 +263,21 @@ class Game:
 		if not capture and destination_piece is not None:
 			raise ValueError("That is a place where you're trying to move. Try the capture move")
 
-	def move_piece(self, moviment):
+	def move_piece(self, movement):
 		destination = None
 		piece_coord = None
 
-		if moviment[0].isupper():
-			if moviment[0] == 'R':
-				# rook
-				add = 0
-				if 'x' in moviment:
-					add = 1
+		if movement[0].isupper():
+			# if the movement is of capture, it's just easier if we shift the reading one character to the right
+			add = 0
+			if 'x' in movement:
+				add = 1
 
-				if moviment[1 + add].isalpha() and moviment[2 + add].isdigit():
+			if movement[0] == 'R':
+				# rook
+				if movement[1 + add].isalpha() and movement[2 + add].isdigit():
 					# not in the same column or row
-					destination = (self.get_row(moviment[2 + add]), self.get_column(moviment[1 + add]))
+					destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
 
 					count = 0
 					for row in range(8):
@@ -292,40 +293,40 @@ class Game:
 						raise ValueError('Please inform which rook you want to move')
 
 					piece_coord = self.find_rook(color=self.turn, destination=destination)
-				elif moviment[1 + add].isalpha() and moviment[2 + add].isalpha():
+				elif movement[1].isalpha() and movement[2 + add].isalpha():
 					# in the same row
-					destination = (self.get_row(moviment[3 + add]), self.get_column(moviment[2 + add]))
-					piece_coord = (self.get_row(moviment[3 + add]), self.get_column(moviment[1 + add]))
+					destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
+					piece_coord = (self.get_row(movement[3 + add]), self.get_column(movement[1]))
 					'''
-					column = self.get_column(moviment[1 + add])
+					column = self.get_column(movement[1 + add])
 					piece_coord = self.find_rook(color=self.turn, column=column)
 					'''
-				elif moviment[1].isdigit() and moviment[2 + add].isalpha():
+				elif movement[1].isdigit() and movement[2 + add].isalpha():
 					# in the same column
-					destination = (self.get_row(moviment[3 + add]), self.get_column(moviment[2 + add]))
-					piece_coord = (self.get_row(moviment[1 + add]), self.get_column(moviment[2 + add]))
+					destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
+					piece_coord = (self.get_row(movement[1]), self.get_column(movement[2 + add]))
 					'''
-					row = self.get_row(moviment[1 + add])
+					row = self.get_row(movement[1 + add])
 					piece_coord = self.find_rook(color=self.turn, row=row)
 					'''
 				else:
-					raise ValueError('Invalid moviment')
+					raise ValueError('Invalid movement')
 
 				is_capture = lambda mov: 'x' in mov
-				self.validate_rook_move(piece_coord, destination, is_capture(moviment))
+				self.validate_rook_move(piece_coord, destination, is_capture(movement))
 
 		else:
 			# pawn
-			if 'x' in moviment:
+			if 'x' in movement:
 				# capture with pawn
-				destination = (self.get_row(moviment[3]), self.get_column(moviment[2]))
-				origin_column = ord(moviment[0]) - 97
+				destination = (self.get_row(movement[3]), self.get_column(movement[2]))
+				origin_column = ord(movement[0]) - 97
 				piece_coord = self.find_pawn(color=self.turn, column=origin_column, limit=destination[0])
 
 				self.validate_capture_with_pawn(piece_coord, destination)
 			else:
 				# pawn move
-				destination = (self.get_row(moviment[1]), self.get_column(moviment[0]))
+				destination = (self.get_row(movement[1]), self.get_column(movement[0]))
 				piece_coord = self.find_pawn(color=self.turn, column=destination[1], limit=destination[0])
 
 				self.validate_pawn_move(piece_coord, destination)
@@ -341,7 +342,7 @@ class Game:
 		else:
 			self.en_passant_coord_black = None
 
-		self.moves.append(moviment)
+		self.moves.append(movement)
 
 		self.turn = not self.turn
 
