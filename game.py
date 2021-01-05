@@ -130,17 +130,37 @@ class Game:
 
 			raise ValueError('This is not a capture move')
 
+	def vaidate_rook_move(self, piece_coord, destination):
+		# destination and piece_coord: (row, column)
+		piece = self.board[piece_coord[0]][piece_coord[1]]
+
+		if piece[1] != 'r':
+			raise ValueError('Wrong piece passed as parameter:', piece)
+
+		if piece_coord[0] != destination[0] and piece_coord[1] != destination[1]:
+			
 	def move_piece(self, moviment):
 		destination = None
 		piece_coord = None
 
 		if moviment[0].isupper():
-			raise Exception('Not implemented yet')
+
+			if moviment[0] == 'R':
+				# rook
+				if moviment[1].isalpha() and moviment[2].isdiit():
+					# not in the same column or row
+
+				elif moviment[1].isalpha() and moviment[2].isalpha():
+					# in the same row
+				elif moviment[1].isdigit() and moviemnt[2].isalpha():
+					# in the same column
+				else:
+					raise ValueError('Invalid moviment')
 
 		else:
 			# pawn 
 			if 'x' in moviment:
-				# pawn capture
+				# capture with pawn
 				destination = (abs(int(moviment[3]) - 8), ord(moviment[2]) - 97)
 				origin_column = ord(moviment[0]) - 97
 				if self.turn == self.WHITE:
@@ -149,11 +169,13 @@ class Game:
 						piece = self.board[i][origin_column] 
 						if piece is not None and self.is_piece_white(piece):
 							piece_coord = (i, origin_column)
+							# it's necessary not to break here because there may be double pawns in a column
 				else:
 					for i in range(1, destination[0]):
 						piece = self.board[i][origin_column] 
 						if piece is not None and self.is_piece_black(piece):
 							piece_coord = (i, origin_column)
+							# it's necessary not to break here because there may be double pawns in a column
 			else:
 				# pawn move
 				destination = (abs(int(moviment[1]) - 8), ord(moviment[0]) - 97)
@@ -162,11 +184,13 @@ class Game:
 						piece = self.board[i][destination[1]] 
 						if piece is not None and self.is_piece_white(piece):
 							piece_coord = (i, destination[1])
+							# it's necessary not to break here because there may be double pawns in a column
 				else:
 					for i in range(1, destination[0]):
 						piece = self.board[i][destination[1]] 
 						if piece is not None and self.is_piece_black(piece):
 							piece_coord = (i, destination[1])
+							# it's necessary not to break here because there may be double pawns in a column
 				
 				self.validate_pawn_move(piece_coord, destination)
 		
