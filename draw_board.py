@@ -40,66 +40,52 @@ pieces_images.update({'bp': BP})
 
 def draw_board(board, origin_square = None, destination_square = None):
 
-    def get_xy(i, j):
-        return (
-            j * SQUARE_SIZE,
-            i * SQUARE_SIZE,
-            j * SQUARE_SIZE + SQUARE_SIZE,
-            i * SQUARE_SIZE + SQUARE_SIZE
-        )
-    
-    def get_piece_image(square):
-        if square is None:
-            return None
-        else:
-            return pieces_images[square]
+	def get_xy(i, j):
+		return (
+			j * SQUARE_SIZE,
+			i * SQUARE_SIZE,
+			j * SQUARE_SIZE + SQUARE_SIZE,
+			i * SQUARE_SIZE + SQUARE_SIZE
+		)
+	
+	def get_piece_image(square):
+		if square is None:
+			return None
+		else:
+			return pieces_images[square]
 
 
-    next_color = LIGHT_COLOR
+	next_color = LIGHT_COLOR
 
-    img = Image.new('RGBA', (SQUARE_SIZE * 8, SQUARE_SIZE * 8))
-    draw = ImageDraw.Draw(img)
+	img = Image.new('RGBA', (SQUARE_SIZE * 8, SQUARE_SIZE * 8))
+	draw = ImageDraw.Draw(img)
 
-    for i in range(8):
-        for j in range(8):
-            color = None
-            if (i, j) == origin_square or (i, j) == destination_square:
-                if next_color == LIGHT_COLOR:
-                    color = LIGHT_SELECTED_COLOR
-                else:
-                    color = DARK_SELECTED_COLOR
-            else:
-                color = next_color
+	for i in range(8):
+		for j in range(8):
+			color = None
+			if (i, j) == origin_square or (i, j) == destination_square:
+				if next_color == LIGHT_COLOR:
+					color = LIGHT_SELECTED_COLOR
+				else:
+					color = DARK_SELECTED_COLOR
+			else:
+				color = next_color
 
-            draw.rectangle(xy = get_xy(i, j), fill = color)
+			draw.rectangle(xy = get_xy(i, j), fill = color)
 
-            piece = get_piece_image(board[i][j])
-            if piece is not None:
-                img.alpha_composite(piece, dest = (j * SQUARE_SIZE, i * SQUARE_SIZE))
+			piece = get_piece_image(board[i][j])
+			if piece is not None:
+				img.alpha_composite(piece, dest = (j * SQUARE_SIZE, i * SQUARE_SIZE))
 
-            if next_color == LIGHT_COLOR:
-                next_color = DARK_COLOR
-            else:
-                next_color = LIGHT_COLOR
-        
-        if next_color == LIGHT_COLOR:
-            next_color = DARK_COLOR
-        else:
-            next_color = LIGHT_COLOR
-
-
-    img.save('board.png')
+			if next_color == LIGHT_COLOR:
+				next_color = DARK_COLOR
+			else:
+				next_color = LIGHT_COLOR
+		
+		if next_color == LIGHT_COLOR:
+			next_color = DARK_COLOR
+		else:
+			next_color = LIGHT_COLOR
 
 
-board = [
-    ['bk', 'br', None, None, None, None, None, None],
-    ['bp', None, None, None, None, None, None, None],
-    [None, 'bp', None, None, None, None, None, None],
-    [None, None, None, None, None, None, None, None],
-    [None, None, None, None, None, None, None, None],
-    [None, None, None, None, None, None, None, None],
-    ['wq', None, None, None, None, None, None, None],
-    ['wk', None, None, None, None, None, None, None],
-]
-
-draw_board(board, (1, 1), (2, 1))
+	img.save('board.png')
