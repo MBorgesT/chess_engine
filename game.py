@@ -30,6 +30,12 @@ class Game:
 		for row in self.board:
 			print(row)
 
+	def get_column(self, char):
+		return ord(char) - 97
+
+	def get_row(self, digit):
+		return abs(int(digit) - 8)
+
 	def is_piece_white(self, piece):
 		return piece[0] == 'w'
 	
@@ -52,6 +58,9 @@ class Game:
 					# it's necessary not to break here because there may be double pawns in a column 
 			
 		return piece_coord
+
+	def find_rook(self, color, row = None, column = None):
+		raise Exception('Not yet implemented')
 
 	def validate_move_generates_check(self, piece_coord, destination):
 		raise Exception('Not yet implemented')
@@ -166,9 +175,8 @@ class Game:
 				# rook
 				if moviment[1].isalpha() and moviment[2].isdiit():
 					# not in the same column or row
-
 				elif moviment[1].isalpha() and moviment[2].isalpha():
-					# in the same row
+					column = ord(moviment[1] - 97)
 				elif moviment[1].isdigit() and moviemnt[2].isalpha():
 					# in the same column
 				else:
@@ -179,14 +187,14 @@ class Game:
 			# pawn 
 			if 'x' in moviment:
 				# capture with pawn
-				destination = (abs(int(moviment[3]) - 8), ord(moviment[2]) - 97)
+				destination = (self.get_row(moviment[3]), self.get_column(moviment[2]))
 				origin_column = ord(moviment[0]) - 97
 				piece_coord = self.find_pawn(column = origin_column, limit = destination[0], color = self.turn)
 
 				self.validate_capture_with_pawn(piece_coord, destination)
 			else:
 				# pawn move
-				destination = (abs(int(moviment[1]) - 8), ord(moviment[0]) - 97)
+				destination = (self.get_row(moviment[1]), self.get_column(moviment[0]))
 				piece_coord = self.find_pawn(column = destination[1], limit = destination[0], color = self.turn)
 				
 				self.validate_pawn_move(piece_coord, destination)
