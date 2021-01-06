@@ -1,4 +1,4 @@
-from game.game import Game
+from game import Game
 from draw_board import draw_board
 
 def move_piece(movement):
@@ -9,4 +9,8 @@ def move_piece(movement):
 game = Game()
 draw_board(game.get_board())
 
-move_piece('Ne4')
+move_piece('e4')
+move_piece('a6')
+move_piece('e5')
+move_piece('f5')
+move_piece('exf4')
