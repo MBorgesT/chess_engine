@@ -1,3 +1,5 @@
+from math import sin, cos, pi
+
 class Game:
 
 	def __init__(self):
@@ -6,8 +8,8 @@ class Game:
 			['bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp'],
 			[None, None, None, None, None, None, None, None],
 			[None, None, None, None, None, None, None, None],
-			[None, None, None, 'bp', None, None, None, None],
-			[None, None, None, 'wr', None, None, None, None],
+			[None, None, None, None, None, None, None, None],
+			[None, None, None, None, None, None, None, None],
 			['wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp'],
 			['wr', 'wn', 'wb', 'wq', 'wk', 'wb', 'wn', 'wr']
 		]
@@ -299,8 +301,21 @@ class Game:
 			elif movement[0] == 'N':
 				# knight
 				if self.is_normal_movement(movement, add):
-					raise Exception('Not implemented yet')
+					# not in the same row or column
+					destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
 
+					count = 0
+					i = 0
+					while i < 2 * pi:
+						row = int(destination[0] + 2 * cos(i) + sin(i))
+						col = int(destination[1] + 2 * sin(i) + cos(i))
+
+						print((row, col))
+
+						i += pi/2
+
+
+					
 
 		else:
 			# pawn
