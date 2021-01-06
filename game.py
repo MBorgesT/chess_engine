@@ -89,31 +89,68 @@ class Game:
 			return (destination_row - 1, origin_column)
 
 	def find_rook(self, color, destination):
+		found = False
+		rook_coord = None
+
 		# going throw columns
 		for col in range(8):
 			piece = self.board[destination[0]][col]
-			if piece is not None and piece[1] == 'r' and ((self.is_piece_white(piece) and color == self.WHITE) 
-				or (self.is_piece_black(piece) and color == self.BLACK)):
-				return (destination[0], col)
+			if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == color:
+				if not found:
+					found = True
+					rook_coord = (destination[0], col)
+				else:
+					raise ValueError('Please inform which rook you want to move')
 
 		# going throw rows
 		for row in range(8):
 			piece = self.board[row][destination[1]]
-			if piece is not None and piece[1] == 'r' and ((self.is_piece_white(piece) and color == self.WHITE)
-				or (self.is_piece_black(piece) and color == self.BLACK)):
-				return (row, destination[1])
+			if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == color:
+				if not found:
+					found = True
+					rook_coord = (row, destination[1])
+				else:
+					raise ValueError('Please inform which rook you want to move')
 
-		raise Exception('Rook not found. Check for bugs')
+		if found:
+			return rook_coord
+		else:
+			raise Exception('Rook not found. Check for bugs')
 
 	def find_knight(self, color, destination):
-		raise Exception('Not implemented yet')
+		found = False
+		coords = []
+		i = 0
+		while i < 2 * pi:
+			row = destination[0] + 2 * int(cos(i)) + int(sin(i))
+			col = destination[1] + 2 * int(sin(i)) + int(cos(i))
+			if self.validate_coord_out_of_board((row, col)):
+				piece = self.board[row][col]
+				if piece is not None and piece[1] == 'n' and self.get_piece_color(piece) == color:
+					found = True
+					coords.append((row, col))
+
+			row = destination[0] + 2 * int(cos(i)) - int(sin(i))
+			col = destination[1] + 2 * int(sin(i)) - int(cos(i))
+			if self.validate_coord_out_of_board((row, col)):
+				piece = self.board[row][col]
+				if piece is not None and piece[1] == 'n' and self.get_piece_color(piece) == color:
+					found = True
+					coords.append((row, col))
+
+			i += pi / 2
+
+		if found:
+			return coords
+		else:
+			self.print_board()
+			raise ValueError('No knight was found')
 
 	def validate_move_generates_check(self, piece_coord, destination):
 		raise Exception('Not yet implemented')
 
 	def validate_coord_out_of_board(self, coord):
-		if coord[0] < 0 or coord[0] > 8 or coord[1] < 0 or coord[1] > 8:
-			raise ValueError('Coordinates out of boundries')
+		return 0 <= coord[0] <= 7 and 0 <= coord[1] <= 7
 
 	def validate_pawn_move(self, piece_coord, destination):
 		# destination and piece_coord: (row, column)
@@ -232,9 +269,6 @@ class Game:
 		if piece_coord[0] == destination[0] and piece_coord[1] == destination[1]:
 			raise ValueError("You can't move to the same square")
 
-		start = None
-		end = None
-
 		if piece_coord[0] == destination[0]:
 			# same row as destination
 			row = piece_coord[0]
@@ -280,25 +314,13 @@ class Game:
 			if 'x' in movement:
 				add = 1
 
+			is_capture = lambda move: 'x' in move
+
 			if movement[0] == 'R':
 				# rook
 				if self.is_normal_movement(movement, add):
 					# not in the same column or row
 					destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
-
-					count = 0
-					for row in range(8):
-						piece = self.board[row][destination[1]]
-						if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == self.turn:
-							count += 1
-					for col in range(8):
-						piece = self.board[destination[0]][col]
-						if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == self.turn:
-							count += 1
-
-					if count > 1:
-						raise ValueError('Please inform which rook you want to move')
-
 					piece_coord = self.find_rook(self.turn, destination)
 				elif self.is_same_row_movement(movement, add):
 					# in the same row
@@ -309,11 +331,9 @@ class Game:
 					# in the same column
 					destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
 					piece_coord = (self.get_row(movement[1]), self.get_column(movement[2 + add]))
-
 				else:
 					raise ValueError('Invalid movement')
 
-				is_capture = lambda move: 'x' in move
 				self.validate_rook_move(piece_coord, destination, is_capture(movement))
 			
 			elif movement[0] == 'N':
@@ -321,28 +341,52 @@ class Game:
 				if self.is_normal_movement(movement, add):
 					# not in the same row or column
 					destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
+					coords = self.find_knight(color=self.turn, destination=destination)
 
-					count = 0
-					i = 0
-					while i < 2 * pi:
-						row = int(destination[0] + 2 * cos(i) + sin(i))
-						col = int(destination[1] + 2 * sin(i) + cos(i))
-						if self.validate_coord_out_of_board((row, col)):
-							piece = self.board[row][col]
-							if piece is not None and piece[1] == 'n' and self.get_piece_color(piece) == self.turn:
-								count += 1
+					if len(coords) == 1:
+						piece_coord = coords[0]
+					else:
+						# checking for 0 already done in the find_knight function
+						raise ValueError('Please inform which one of the knights you want to move')
+				elif self.is_same_row_movement(movement, add):
+					# in the same row
+					destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
+					col = self.get_column(movement[1])
+					coords = self.find_knight(color=self.turn, destination=destination)
 
-						row = int(destination[0] + 2 * cos(i) - sin(i))
-						col = int(destination[1] + 2 * sin(i) - cos(i))
-						if self.validate_coord_out_of_board((row, col)):
-							piece = self.board[row][col]
-							if piece is not None and piece[1] == 'n' and self.get_piece_color(piece) == self.turn:
-								count += 1
+					if len(coords) == 1:
+						piece_coord = coords[0]
+					elif len(coords) == 2:
+						if coords[0][1] == col:
+							piece_coord = coords[0]
+						elif coords[1][1] == col:
+							piece_coord = coords[1]
+						else:
+							raise ValueError("Couldn't find a knight with the specified command")
+					else:
+						raise ValueError('The number of knights found is more than two:', len(coords))
+				elif self.is_same_col_movement(movement, add):
+					destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
+					row = self.get_row(movement[1])
+					coords = self.find_knight(color=self.turn, destination=destination)
 
-						i += pi/2
+					if len(coords) == 1:
+						piece_coord = coords[0]
+					elif len(coords) == 2:
+						if coords[0][0] == row:
+							piece_coord = coords[0]
+						elif coords[1][0] == row:
+							piece_coord = coords[1]
+						else:
+							raise ValueError("Couldn't find a knight with the specified command")
+					else:
+						raise ValueError('The number of knights found is more than two:', len(coords))
+				else:
+					raise ValueError('Invalid movement')
 
-				if count > 1:
-					raise ValueError('Please inform which rook you want to move')
+				print(piece_coord)
+
+
 
 		else:
 			# pawn
@@ -387,6 +431,6 @@ class Game:
 
 		self.moves.append(movement)
 
-		self.turn = not self.turn
+		#self.turn = not self.turn
 
 		return [piece_coord, destination]
