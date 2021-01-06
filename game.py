@@ -5,9 +5,9 @@ class Game:
 	def __init__(self):
 		self.board = [
 			['br', 'bn', 'bb', 'bq', 'bk', 'bb', 'bn', 'br'],
-			['bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp'],
+			['bp', None, 'bp', 'bp', 'bp', 'bp', 'bp', 'bp'],
 			[None, None, None, None, None, None, None, None],
-			[None, None, None, None, None, None, None, None],
+			[None, 'bp', None, None, None, None, None, None],
 			[None, None, None, None, None, None, None, None],
 			[None, None, None, None, None, None, None, None],
 			['wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp'],
@@ -148,6 +148,21 @@ class Game:
 		else:
 			self.print_board()
 			raise ValueError('No knight was found')
+
+	def find_bishop(self, color, destination):
+		for i in range(-1, 2, 2):
+			for j in range(-1, 2, 2):
+				coord = list(destination)
+				coord[0] += i
+				coord[1] += j
+				while 0 <= coord[0] <= 7 and 0 <= coord[1] <= 7:
+					piece = self.board[coord[0]][coord[1]]
+					if piece is not None and piece[1] == 'b' and self.get_piece_color(piece) == color:
+						return (coord[0], coord[1])
+					coord[0] += i
+					coord[1] += j
+
+		raise ValueError('Could not find bishop')
 
 	def validate_move_generates_check(self, piece_coord, destination):
 		raise Exception('Not yet implemented')
@@ -329,6 +344,54 @@ class Game:
 		if not capture and destination_piece is not None:
 			raise ValueError("That is a place where you're trying to move. Try the capture move")
 
+	def validate_bishop_move(self, piece_coord, destination, capture):
+		# destination and piece_coord: (row, column)
+		piece = self.board[piece_coord[0]][piece_coord[1]]
+
+		if piece is None:
+			raise ValueError('There is no piece in the origin square')
+
+		if piece[1] != 'b':
+			raise ValueError('Wrong piece passed as parameter:', piece)
+
+		# get the direction to go to
+		row_incr = None
+		if destination[0] - piece_coord[0] > 0:
+			row_incr = 1
+		elif destination[0] - piece_coord[0] < 0:
+			row_incr = -1
+		else:
+			raise ValueError("Can't realize this move because both pieces are in the same row")
+
+		col_incr = None
+		if destination[1] - piece_coord[1] > 0:
+			col_incr = 1
+		elif destination[1] - piece_coord[1] < 0:
+			col_incr = -1
+		else:
+			raise ValueError("Can't realize this move because both pieces are in the same column")
+
+		# check if the path to the destination is empty
+		coord = list(piece_coord)
+		coord[0] += row_incr
+		coord[1] += col_incr
+		while tuple(coord) != destination:
+			square = self.board[coord[0]][coord[1]]
+			if square is not None:
+				raise ValueError('There is at least one piece in the path between the two pieces:', coord)
+
+			coord[0] += row_incr
+			coord[1] += col_incr
+
+		destination_piece = self.board[destination[0]][destination[1]]
+		if capture:
+			if destination_piece is None:
+				raise ValueError('There is no piece in the square to be captured')
+			if self.get_piece_color(destination_piece) == self.get_piece_color(piece):
+				raise ValueError("You can't capture your own piece")
+		if not capture and destination_piece is not None:
+			raise ValueError("That is a place where you're trying to move. Try the capture move")
+
 	def move_piece(self, movement):
 		destination = None
 		piece_coord = None
@@ -409,12 +472,16 @@ class Game:
 
 				self.validate_knight_move(piece_coord=piece_coord, destination=destination, capture=self.is_move_capture(movement))
 
-			elif movement[1] == 'b':
+			elif movement[0] == 'B':
 				# bishop
 				# there is no no need to check for anmbiguous moviments because of the nature of different square
 				# colors for bishops
+				destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
+				piece_coord = self.find_bishop(color=self.turn, destination=destination)
 
-		else:
+				self.validate_bishop_move(piece_coord=piece_coord,destination=destination,capture=self.is_move_capture(movement))
+
+		elif movement[0] == 'x' or 97 <= ord(movement[0]) <= 104:
 			# pawn
 			if 'x' in movement:
 				# capture with pawn
@@ -429,6 +496,8 @@ class Game:
 				piece_coord = self.find_pawn(color=self.turn, column=destination[1], limit=destination[0])
 
 				self.validate_pawn_move(piece_coord, destination)
+		else:
+			raise ValueError('This command is invalid')
 
 
 		print('move:', movement)

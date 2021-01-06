@@ -8,6 +8,10 @@ def move_piece(movement):
 game = Game()
 draw_board(game.get_board())
 
+while True:
+    move_piece(input())
+
+'''
 move_piece('Nh3')
 move_piece('Ng5')
 move_piece('Nxf7')
@@ -16,3 +20,6 @@ move_piece('Nc4')
 move_piece('Ne3')
 move_piece('Nc3')
 move_piece('Ned5')
+move_piece('Nxc7')
+move_piece('N3xb5')
+'''
