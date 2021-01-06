@@ -65,6 +65,9 @@ class Game:
 	def is_same_col_movement(self, movement, add):
 		return movement[1].isdigit() and movement[2 + add].isalpha()
 
+	def is_move_capture(self, move):
+		return 'x' in move
+
 	def find_pawn(self, color, column, limit):
 		piece_coord = None
 		if color == self.WHITE:
@@ -299,8 +302,30 @@ class Game:
 					raise ValueError('There are other pieces between the origin and destination')
 
 		destination_piece = self.board[destination[0]][destination[1]]
-		if capture and self.get_piece_color(destination_piece) == self.get_piece_color(piece):
-			raise ValueError("You can't capture your own piece")
+		if capture:
+			if destination_piece is None:
+				raise ValueError('There is no piece in the square to be captured')
+			if self.get_piece_color(destination_piece) == self.get_piece_color(piece):
+				raise ValueError("You can't capture your own piece")
+		if not capture and destination_piece is not None:
+			raise ValueError("That is a place where you're trying to move. Try the capture move")
+
+	def validate_knight_move(self, piece_coord, destination, capture):
+		# destination and piece_coord: (row, column)
+		piece = self.board[piece_coord[0]][piece_coord[1]]
+
+		if piece is None:
+			raise ValueError('There is no piece in the origin square')
+
+		if piece[1] != 'n':
+			raise ValueError('Wrong piece passed as parameter:', piece)
+
+		destination_piece = self.board[destination[0]][destination[1]]
+		if capture:
+			if destination_piece is None:
+				raise ValueError('There is no piece in the square to be captured')
+			if self.get_piece_color(destination_piece) == self.get_piece_color(piece):
+				raise ValueError("You can't capture your own piece")
 		if not capture and destination_piece is not None:
 			raise ValueError("That is a place where you're trying to move. Try the capture move")
 
@@ -311,10 +336,8 @@ class Game:
 		if movement[0].isupper():
 			# if the movement is of capture, it's just easier if we shift the reading one character to the right
 			add = 0
-			if 'x' in movement:
+			if self.is_move_capture(movement):
 				add = 1
-
-			is_capture = lambda move: 'x' in move
 
 			if movement[0] == 'R':
 				# rook
@@ -334,7 +357,7 @@ class Game:
 				else:
 					raise ValueError('Invalid movement')
 
-				self.validate_rook_move(piece_coord, destination, is_capture(movement))
+				self.validate_rook_move(piece_coord, destination, self.is_move_capture(movement))
 			
 			elif movement[0] == 'N':
 				# knight
@@ -346,7 +369,7 @@ class Game:
 					if len(coords) == 1:
 						piece_coord = coords[0]
 					else:
-						# checking for 0 already done in the find_knight function
+						# checking for 0 is already done in the find_knight function
 						raise ValueError('Please inform which one of the knights you want to move')
 				elif self.is_same_row_movement(movement, add):
 					# in the same row
@@ -384,9 +407,12 @@ class Game:
 				else:
 					raise ValueError('Invalid movement')
 
-				print(piece_coord)
+				self.validate_knight_move(piece_coord=piece_coord, destination=destination, capture=self.is_move_capture(movement))
 
-
+			elif movement[1] == 'b':
+				# bishop
+				# there is no no need to check for anmbiguous moviments because of the nature of different square
+				# colors for bishops
 
 		else:
 			# pawn
