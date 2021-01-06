@@ -99,7 +99,7 @@ class Game:
 		# going throw rows
 		for row in range(8):
 			piece = self.board[row][destination[1]]
-			if piece is not None and piece[1] == 'r' and ((self.is_piece_white(piece) and color == self.WHITE) 
+			if piece is not None and piece[1] == 'r' and ((self.is_piece_white(piece) and color == self.WHITE)
 				or (self.is_piece_black(piece) and color == self.BLACK)):
 				return (row, destination[1])
 
@@ -327,13 +327,22 @@ class Game:
 					while i < 2 * pi:
 						row = int(destination[0] + 2 * cos(i) + sin(i))
 						col = int(destination[1] + 2 * sin(i) + cos(i))
+						if self.validate_coord_out_of_board((row, col)):
+							piece = self.board[row][col]
+							if piece is not None and piece[1] == 'n' and self.get_piece_color(piece) == self.turn:
+								count += 1
 
-						print((row, col))
+						row = int(destination[0] + 2 * cos(i) - sin(i))
+						col = int(destination[1] + 2 * sin(i) - cos(i))
+						if self.validate_coord_out_of_board((row, col)):
+							piece = self.board[row][col]
+							if piece is not None and piece[1] == 'n' and self.get_piece_color(piece) == self.turn:
+								count += 1
 
 						i += pi/2
 
-
-					
+				if count > 1:
+					raise ValueError('Please inform which rook you want to move')
 
 		else:
 			# pawn
