@@ -21,8 +21,11 @@ class Game:
 		self.BLACK = False
 		self.turn = self.WHITE
 
-		self.en_passant_coord_white = False
-		self.en_passant_coord_black = False
+		self.en_passant_coord_white = None
+		self.en_passant_coord_black = None
+
+		self.en_passant_flag_white = False
+		self.en_passant_flag_black = False
 
 		self.en_passant_just_now = False
 
@@ -78,6 +81,12 @@ class Game:
 		# it's necessary not to break here because there may be double pawns in a column
 
 		return piece_coord
+
+	def find_capturer_pawn(self, color, destination_row, origin_column):
+		if color == self.WHITE:
+			return (destination_row + 1, origin_column)
+		else:
+			return (destination_row - 1, origin_column)
 
 	def find_rook(self, color, destination):
 		# going throw columns
@@ -142,12 +151,12 @@ class Game:
 					self.en_passant_just_now = True
 				elif row_distance != 1:
 					raise ValueError('Wrong row distance', row_distance)
-			elif piece[1] == 'b':
+			elif piece[0] == 'b':
 				# check if distance is correct
 				if row_distance == -2:
 					if piece_coord[0] != 1:
 						raise ValueError('Wrong row distance:', row_distance)
-					elif self.board[piece_coord[0] - 1][piece_coord[1]] is not None:
+					elif self.board[piece_coord[0] + 1][piece_coord[1]] is not None:
 						raise ValueError('There is another piece in the way')
 
 					self.en_passant_coord_black = (2, piece_coord[1])
@@ -183,16 +192,22 @@ class Game:
 				if (self.is_piece_white(piece) and self.en_passant_coord_black != destination) or (
 						self.is_piece_black(piece) and self.en_passant_coord_white != destination):
 					raise ValueError('There is no piece in the destination square to capture')
+				else:
+					# set a flag to sign on move_piece function that a en passant was done
+					if self.is_piece_white(piece):
+						self.en_passant_flag_white = True
+					else:
+						self.en_passant_flag_black = True
 			elif self.get_piece_color(destination_piece) == self.get_piece_color(piece):
 				raise ValueError("You can't capture your own piece")
 
 			if piece[0] == 'w':
 				# check if distance is correct
-				if piece_coord[1] - destination[1] != 1:
+				if piece_coord[0] - destination[0] != 1:
 					raise ValueError('Wrong row distance')
-			elif piece[1] == 'b':
+			elif piece[0] == 'b':
 				# check if distance is correct
-				if piece_coord[1] - destination[1] != -1:
+				if piece_coord[0] - destination[0] != -1:
 					raise ValueError('Wrong row distance')
 			else:
 				raise ValueError('Wrong color passed as parameter:', piece)
@@ -326,7 +341,7 @@ class Game:
 				# capture with pawn
 				destination = (self.get_row(movement[3]), self.get_column(movement[2]))
 				origin_column = self.get_column(movement[0])
-				piece_coord = self.find_pawn(color=self.turn, column=origin_column, limit=destination[0])
+				piece_coord = self.find_capturer_pawn(color=self.turn, destination_row=destination[0], origin_column=origin_column)
 
 				self.validate_capture_with_pawn(piece_coord, destination)
 			else:
@@ -336,19 +351,30 @@ class Game:
 
 				self.validate_pawn_move(piece_coord, destination)
 
-		print('dest:', destination)
-		print('orgn:', piece_coord)
 
+		print('move:', movement)
+		print('dest:', destination)
+		print('orgn:', piece_coord, '\n')
+
+		# alterations on the board
 		self.board[destination[0]][destination[1]] = self.board[piece_coord[0]][piece_coord[1]]
 		self.board[piece_coord[0]][piece_coord[1]] = None
+
+		# white did an en passant move
+		if self.en_passant_flag_white:
+			self.en_passant_flag_white = False
+			self.board[destination[0] + 1][destination[1]] = None
+		elif self.en_passant_flag_black:
+			self.en_passant_flag_black = False
+			self.board[destination[0] - 1][destination[1]] = None
 
 		if self.en_passant_just_now:
 			self.en_passant_just_now = False
 		else:
 			if self.turn == self.WHITE:
-				self.en_passant_coord_white = False
+				self.en_passant_coord_white = None
 			else:
-				self.en_passant_coord_black = False
+				self.en_passant_coord_black = None
 
 		self.moves.append(movement)
 
