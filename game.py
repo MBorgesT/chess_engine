@@ -6,8 +6,8 @@ class Game:
 			['bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp'],
 			[None, None, None, None, None, None, None, None],
 			[None, None, None, None, None, None, None, None],
-			[None, None, None, None, None, None, None, None],
-			[None, None, None, None, None, None, None, None],
+			[None, None, None, 'bp', None, None, None, None],
+			[None, None, None, 'wr', None, None, None, None],
 			['wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp'],
 			['wr', 'wn', 'wb', 'wq', 'wk', 'wb', 'wn', 'wr']
 		]
@@ -50,6 +50,15 @@ class Game:
 	def is_piece_black(self, piece):
 		return piece[0] == 'b'
 
+	def is_normal_movement(self, movement, add):
+		return movement[1 + add].isalpha() and movement[2 + add].isdigit()
+
+	def is_same_row_movement(self, movement, add):
+		return movement[1].isalpha() and movement[2 + add].isalpha()
+	
+	def is_same_col_movement(self, movement, add):
+		return movement[1].isdigit() and movement[2 + add].isalpha()
+
 	def find_pawn(self, color, column, limit):
 		piece_coord = None
 		if color == self.WHITE:
@@ -67,47 +76,25 @@ class Game:
 
 		return piece_coord
 
-	def find_rook(self, color, row=None, column=None, destination=None):
-		if row is None and column is None:
+	def find_rook(self, color, destination):
+		# going throw columns
+		for col in range(8):
+			piece = self.board[destination[0]][col]
+			if piece is not None and piece[1] == 'r' and ((self.is_piece_white(piece) and color == self.WHITE) 
+				or (self.is_piece_black(piece) and color == self.BLACK)):
+				return (destination[0], col)
 
-			if destination is None:
-				raise Exception('The destination is needed when no row or column is informed')
+		# going throw rows
+		for row in range(8):
+			piece = self.board[row][destination[1]]
+			if piece is not None and piece[1] == 'r' and ((self.is_piece_white(piece) and color == self.WHITE) 
+				or (self.is_piece_black(piece) and color == self.BLACK)):
+				return (row, destination[1])
 
-			# going throw columns
-			for col in range(8):
-				piece = self.board[destination[0]][col]
-				if piece is not None and piece[1] == 'r' and ((self.is_piece_white(piece) and color == self.WHITE) or (
-						self.is_piece_black(piece) and color == self.BLACK)):
-					return (destination[0], col)
+		raise Exception('Rook not found. Check for bugs')
 
-			# going throw rows
-			for row in range(8):
-				piece = self.board[row][destination[1]]
-				if piece is not None and piece[1] == 'r' and ((self.is_piece_white(piece) and color == self.WHITE) or (
-						self.is_piece_black(piece) and color == self.BLACK)):
-					return (row, destination[1])
-
-			raise Exception('Rook not found. Check for bugs')
-
-		'''
-		elif row is not None:
-
-			# if we know the row the rook is
-			for i in range(8):
-				piece = self.board[row][i]
-				if piece is not None and piece[1] == 'r' and ((self.is_piece_white(piece) and color == self.WHITE) or (
-						self.is_piece_black(piece) and color == self.BLACK)):
-					return (row, i)
-
-		elif column is not None:
-
-			# if we know the column the rook is
-			for i in range(8):
-				piece = self.board[i][column]
-				if piece is not None and piece[1] == 'r' and (
-						(self.is_piece_white and color == self.WHITE) or (self.is_piece_black and color == self.BLACK)):
-					return (i, column)
-		'''
+	def find_knight(self, color, destination):
+		raise Exception('Not implemented yet')
 
 	def validate_move_generates_check(self, piece_coord, destination):
 		raise Exception('Not yet implemented')
@@ -275,7 +262,7 @@ class Game:
 
 			if movement[0] == 'R':
 				# rook
-				if movement[1 + add].isalpha() and movement[2 + add].isdigit():
+				if self.is_normal_movement(movement, add):
 					# not in the same column or row
 					destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
 
@@ -292,35 +279,35 @@ class Game:
 					if count > 1:
 						raise ValueError('Please inform which rook you want to move')
 
-					piece_coord = self.find_rook(color=self.turn, destination=destination)
-				elif movement[1].isalpha() and movement[2 + add].isalpha():
+					piece_coord = self.find_rook(self.turn, destination)
+				elif self.is_same_row_movement(movement, add):
 					# in the same row
 					destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
 					piece_coord = (self.get_row(movement[3 + add]), self.get_column(movement[1]))
-					'''
-					column = self.get_column(movement[1 + add])
-					piece_coord = self.find_rook(color=self.turn, column=column)
-					'''
-				elif movement[1].isdigit() and movement[2 + add].isalpha():
+
+				elif self.is_same_col_movement(movement, add):
 					# in the same column
 					destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
 					piece_coord = (self.get_row(movement[1]), self.get_column(movement[2 + add]))
-					'''
-					row = self.get_row(movement[1 + add])
-					piece_coord = self.find_rook(color=self.turn, row=row)
-					'''
+
 				else:
 					raise ValueError('Invalid movement')
 
-				is_capture = lambda mov: 'x' in mov
+				is_capture = lambda move: 'x' in move
 				self.validate_rook_move(piece_coord, destination, is_capture(movement))
+			
+			elif movement[0] == 'N':
+				# knight
+				if self.is_normal_movement(movement, add):
+					raise Exception('Not implemented yet')
+
 
 		else:
 			# pawn
 			if 'x' in movement:
 				# capture with pawn
 				destination = (self.get_row(movement[3]), self.get_column(movement[2]))
-				origin_column = ord(movement[0]) - 97
+				origin_column = self.get_column(movement[0])
 				piece_coord = self.find_pawn(color=self.turn, column=origin_column, limit=destination[0])
 
 				self.validate_capture_with_pawn(piece_coord, destination)

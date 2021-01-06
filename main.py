@@ -9,6 +9,4 @@ def move_piece(movement):
 game = Game()
 draw_board(game.get_board())
 
-move_piece('a3')
-move_piece('d4')
-move_piece('Rxbd4')
+move_piece('R3xd4')
