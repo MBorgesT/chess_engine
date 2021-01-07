@@ -1,5 +1,6 @@
 from math import sin, cos, pi
 
+
 class Game:
 
 	def __init__(self):
@@ -65,7 +66,7 @@ class Game:
 
 	def is_same_row_movement(self, movement, add):
 		return movement[1].isalpha() and movement[2 + add].isalpha()
-	
+
 	def is_same_col_movement(self, movement, add):
 		return movement[1].isdigit() and movement[2 + add].isalpha()
 
@@ -540,107 +541,21 @@ class Game:
 
 			if movement[0] == 'R':
 				# rook
-				if self.is_normal_movement(movement, add):
-					# not in the same column or row
-					destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
-					piece_coord = self.find_rook(self.turn, destination)
-				elif self.is_same_row_movement(movement, add):
-					# in the same row
-					destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
-					piece_coord = (self.get_row(movement[3 + add]), self.get_column(movement[1]))
-
-				elif self.is_same_col_movement(movement, add):
-					# in the same column
-					destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
-					piece_coord = (self.get_row(movement[1]), self.get_column(movement[2 + add]))
-				else:
-					raise ValueError('Invalid movement')
-
-				self.validate_rook_move(piece_coord, destination, self.is_move_capture(movement))
+				destination, piece_coord = self.handle_rook_move(movement, add)
 			elif movement[0] == 'N':
 				# knight
-				if self.is_normal_movement(movement, add):
-					# not in the same row or column
-					destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
-					coords = self.find_knight(color=self.turn, destination=destination)
-
-					if len(coords) == 1:
-						piece_coord = coords[0]
-					else:
-						# checking for 0 is already done in the find_knight function
-						raise ValueError('Please inform which one of the knights you want to move')
-				elif self.is_same_row_movement(movement, add):
-					# in the same row
-					destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
-					col = self.get_column(movement[1])
-					coords = self.find_knight(color=self.turn, destination=destination)
-
-					if len(coords) == 1:
-						piece_coord = coords[0]
-					elif len(coords) == 2:
-						if coords[0][1] == col:
-							piece_coord = coords[0]
-						elif coords[1][1] == col:
-							piece_coord = coords[1]
-						else:
-							raise ValueError("Couldn't find a knight with the specified command")
-					else:
-						raise ValueError('The number of knights found is more than two:', len(coords))
-				elif self.is_same_col_movement(movement, add):
-					destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
-					row = self.get_row(movement[1])
-					coords = self.find_knight(color=self.turn, destination=destination)
-
-					if len(coords) == 1:
-						piece_coord = coords[0]
-					elif len(coords) == 2:
-						if coords[0][0] == row:
-							piece_coord = coords[0]
-						elif coords[1][0] == row:
-							piece_coord = coords[1]
-						else:
-							raise ValueError("Couldn't find a knight with the specified command")
-					else:
-						raise ValueError('The number of knights found is more than two:', len(coords))
-				else:
-					raise ValueError('Invalid movement')
-
-				self.validate_knight_move(piece_coord=piece_coord, destination=destination, capture=self.is_move_capture(movement))
+				destination, piece_coord = self.handle_knight_move(movement, add)
 			elif movement[0] == 'B':
 				# bishop
-				# there is no no need to check for anmbiguous moviments because of the nature of different square
-				# colors for bishops
-				destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
-				piece_coord = self.find_bishop(color=self.turn, destination=destination)
-
-				self.validate_bishop_move(piece_coord=piece_coord, destination=destination, capture=self.is_move_capture(movement))
+				destination, piece_coord = self.handle_bishop_move(movement, add)
 			elif movement[0] == 'Q':
 				# queen
-				# I'll try to combine both the rook and bishop code into this one, since it seems like in the surface
-				# that it'll work
-				# Also it doesn't need to check for ambiguity because there is only one queen
-				destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
-				piece_coord = self.find_queen(color=self.turn, destination=destination)
-
-				self.validate_queen_move(piece_coord=piece_coord, destination=destination, capture=self.is_move_capture(movement))
+				destination, piece_coord = self.handle_queen_move(movement, add)
 			else:
 				raise ValueError('This command is invalid')
 		elif movement[0] == 'x' or 97 <= ord(movement[0]) <= 104:
 			# pawn
-			# todo: pawn upgrade implementation (should be easy)
-			if 'x' in movement:
-				# capture with pawn
-				destination = (self.get_row(movement[3]), self.get_column(movement[2]))
-				origin_column = self.get_column(movement[0])
-				piece_coord = self.find_capturer_pawn(color=self.turn, destination_row=destination[0], origin_column=origin_column)
-
-				self.validate_capture_with_pawn(piece_coord, destination)
-			else:
-				# pawn move
-				destination = (self.get_row(movement[1]), self.get_column(movement[0]))
-				piece_coord = self.find_pawn(color=self.turn, column=destination[1], limit=destination[0])
-
-				self.validate_pawn_move(piece_coord, destination)
+			destination, piece_coord = self.handle_pawn(movement)
 		else:
 			raise ValueError('This command is invalid')
 
@@ -670,6 +585,148 @@ class Game:
 
 		self.moves.append(movement)
 
-		#self.turn = not self.turn
+		# self.turn = not self.turn
 
 		return [piece_coord, destination]
+
+	def handle_pawn_move(self, movement):
+		# todo: pawn upgrade implementation (should be easy)
+		destination = None
+		piece_coord = None
+		if 'x' in movement:
+			# capture with pawn
+			destination = (self.get_row(movement[3]), self.get_column(movement[2]))
+			origin_column = self.get_column(movement[0])
+			piece_coord = self.find_capturer_pawn(color=self.turn, destination_row=destination[0],
+			                                      origin_column=origin_column)
+
+			self.validate_capture_with_pawn(piece_coord, destination)
+		else:
+			# pawn move
+			destination = (self.get_row(movement[1]), self.get_column(movement[0]))
+			piece_coord = self.find_pawn(color=self.turn, column=destination[1], limit=destination[0])
+
+			self.validate_pawn_move(piece_coord, destination)
+
+		if destination is None or piece_coord is None:
+			raise Exception('Something went wrong. This should not happen in any case because if this conditional is '
+			                'true, other exception calls should have triggered before. Go for a walk and then try to '
+			                'solve this.')
+
+		return destination, piece_coord
+
+	def handle_rook_move(self, movement, add):
+		if self.is_normal_movement(movement, add):
+			# not in the same column or row
+			destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
+			piece_coord = self.find_rook(self.turn, destination)
+		elif self.is_same_row_movement(movement, add):
+			# in the same row
+			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
+			piece_coord = (self.get_row(movement[3 + add]), self.get_column(movement[1]))
+
+		elif self.is_same_col_movement(movement, add):
+			# in the same column
+			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
+			piece_coord = (self.get_row(movement[1]), self.get_column(movement[2 + add]))
+		else:
+			raise ValueError('Invalid movement')
+
+		self.validate_rook_move(piece_coord, destination, self.is_move_capture(movement))
+
+		if destination is None or piece_coord is None:
+			raise Exception('Something went wrong. This should not happen in any case because if this conditional is '
+			                'true, other exception calls should have triggered before. Go for a walk and then try to '
+			                'solve this.')
+
+		return destination, piece_coord
+
+	def handle_knight_move(self, movement, add):
+		if self.is_normal_movement(movement, add):
+			# not in the same row or column
+			destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
+			coords = self.find_knight(color=self.turn, destination=destination)
+
+			if len(coords) == 1:
+				piece_coord = coords[0]
+			else:
+				# checking for 0 is already done in the find_knight function
+				raise ValueError('Please inform which one of the knights you want to move')
+		elif self.is_same_row_movement(movement, add):
+			# in the same row
+			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
+			col = self.get_column(movement[1])
+			coords = self.find_knight(color=self.turn, destination=destination)
+
+			if len(coords) == 1:
+				piece_coord = coords[0]
+			elif len(coords) == 2:
+				if coords[0][1] == col:
+					piece_coord = coords[0]
+				elif coords[1][1] == col:
+					piece_coord = coords[1]
+				else:
+					raise ValueError("Couldn't find a knight with the specified command")
+			else:
+				raise ValueError('The number of knights found is more than two:', len(coords))
+		elif self.is_same_col_movement(movement, add):
+			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
+			row = self.get_row(movement[1])
+			coords = self.find_knight(color=self.turn, destination=destination)
+
+			if len(coords) == 1:
+				piece_coord = coords[0]
+			elif len(coords) == 2:
+				if coords[0][0] == row:
+					piece_coord = coords[0]
+				elif coords[1][0] == row:
+					piece_coord = coords[1]
+				else:
+					raise ValueError("Couldn't find a knight with the specified command")
+			else:
+				raise ValueError('The number of knights found is more than two:', len(coords))
+		else:
+			raise ValueError('Invalid movement')
+
+		self.validate_knight_move(piece_coord=piece_coord, destination=destination,
+		                          capture=self.is_move_capture(movement))
+
+		if destination is None or piece_coord is None:
+			raise Exception('Something went wrong. This should not happen in any case because if this conditional is '
+			                'true, other exception calls should have triggered before. Go for a walk and then try to '
+			                'solve this.')
+
+		return destination, piece_coord
+
+	def handle_bishop_move(self, movement, add):
+		# there is no no need to check for anmbiguous moviments because of the nature of different square
+		# colors for bishops
+		destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
+		piece_coord = self.find_bishop(color=self.turn, destination=destination)
+
+		self.validate_bishop_move(piece_coord=piece_coord, destination=destination,
+		                          capture=self.is_move_capture(movement))
+
+		if destination is None or piece_coord is None:
+			raise Exception('Something went wrong. This should not happen in any case because if this conditional is '
+			                'true, other exception calls should have triggered before. Go for a walk and then try to '
+			                'solve this.')
+
+		return destination, piece_coord
+
+	def handle_queen_move(self, movement, add):
+		# I'll try to combine both the rook and bishop code into this one, since it seems like in the surface
+		# that it'll work
+		# Also it doesn't need to check for ambiguity because there is only one queen
+		destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
+		piece_coord = self.find_queen(color=self.turn, destination=destination)
+
+		self.validate_queen_move(piece_coord=piece_coord, destination=destination,
+		                         capture=self.is_move_capture(movement))
+
+		if destination is None or piece_coord is None:
+			raise Exception('Something went wrong. This should not happen in any case because if this conditional is '
+			                'true, other exception calls should have triggered before. Go for a walk and then try to '
+			                'solve this.')
+
+		return destination, piece_coord
