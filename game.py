@@ -29,12 +29,12 @@ class Game:
 
 		self.en_passant_just_now = False
 
+	# -----------------------------------------------------------------------------------------------------------------
+	#                                              AUXILIARY FUNCTIONS
+	# -----------------------------------------------------------------------------------------------------------------
+
 	def get_board(self):
 		return self.board
-
-	def print_board(self):
-		for row in self.board:
-			print(row)
 
 	def get_piece_color(self, piece):
 		if piece[0] == 'w':
@@ -49,6 +49,10 @@ class Game:
 
 	def get_row(self, digit):
 		return abs(int(digit) - 8)
+
+	def print_board(self):
+		for row in self.board:
+			print(row)
 
 	def is_piece_white(self, piece):
 		return piece[0] == 'w'
@@ -67,6 +71,13 @@ class Game:
 
 	def is_move_capture(self, move):
 		return 'x' in move
+
+	# -----------------------------------------------------------------------------------------------------------------
+	#                                                 FINDERS
+	# -----------------------------------------------------------------------------------------------------------------
+	# These following functions are designed find the coordinates of the piece to be moved if it's not explicit in the
+	# algebraic notation. In this case, it's quickly translated in the handlers.
+	# -----------------------------------------------------------------------------------------------------------------
 
 	def find_pawn(self, color, column, limit):
 		piece_coord = None
@@ -155,7 +166,7 @@ class Game:
 				coord = list(destination)
 				coord[0] += i
 				coord[1] += j
-				while 0 <= coord[0] <= 7 and 0 <= coord[1] <= 7:
+				while self.validate_coord_out_of_board(coord):
 					piece = self.board[coord[0]][coord[1]]
 					if piece is not None and piece[1] == 'b' and self.get_piece_color(piece) == color:
 						return (coord[0], coord[1])
@@ -163,6 +174,42 @@ class Game:
 					coord[1] += j
 
 		raise ValueError('Could not find bishop')
+
+	def find_queen(self, color, destination):
+		# rook-like part
+		# going throw columns
+		for col in range(8):
+			piece = self.board[destination[0]][col]
+			if piece is not None and piece[1] == 'q' and self.get_piece_color(piece) == color:
+				return (destination[0], col)
+
+		# going throw rows
+		for row in range(8):
+			piece = self.board[row][destination[1]]
+			if piece is not None and piece[1] == 'q' and self.get_piece_color(piece) == color:
+				return (row, destination[1])
+
+		# bishop-like part
+		for i in range(-1, 2, 2):
+			for j in range(-1, 2, 2):
+				coord = list(destination)
+				coord[0] += i
+				coord[1] += j
+				while self.validate_coord_out_of_board(coord):
+					piece = self.board[coord[0]][coord[1]]
+					if piece is not None and piece[1] == 'q' and self.get_piece_color(piece) == color:
+						return (coord[0], coord[1])
+					coord[0] += i
+					coord[1] += j
+
+		raise ValueError('Queen not found')
+
+	# -----------------------------------------------------------------------------------------------------------------
+	#                                               VALIDATORS
+	# -----------------------------------------------------------------------------------------------------------------
+	# Once the piece to be moved is found, these functions validate if the move is legal. If not, it's exceptions are
+	# raised describing which rule was broken.
+	# -----------------------------------------------------------------------------------------------------------------
 
 	def validate_move_generates_check(self, piece_coord, destination):
 		raise Exception('Not yet implemented')
@@ -392,6 +439,95 @@ class Game:
 		if not capture and destination_piece is not None:
 			raise ValueError("That is a place where you're trying to move. Try the capture move")
 
+	def validate_queen_move(self, piece_coord, destination, capture):
+		# destination and piece_coord: (row, column)
+		piece = self.board[piece_coord[0]][piece_coord[1]]
+
+		if piece is None:
+			raise ValueError('There is no piece in the origin square')
+
+		if piece[1] != 'q':
+			raise ValueError('Wrong piece passed as parameter:', piece)
+
+		if piece_coord[0] == destination[0] and piece_coord[1] == destination[1]:
+			raise ValueError("You can't move to the same square")
+
+		if abs(piece_coord[0] - destination[0]) == abs(piece_coord[1] - destination[1]):
+			# behaving like a bishop
+			# get the direction to go to
+			row_incr = None
+			if destination[0] - piece_coord[0] > 0:
+				row_incr = 1
+			elif destination[0] - piece_coord[0] < 0:
+				row_incr = -1
+			else:
+				raise ValueError("Can't realize this move because both pieces are in the same row")
+
+			col_incr = None
+			if destination[1] - piece_coord[1] > 0:
+				col_incr = 1
+			elif destination[1] - piece_coord[1] < 0:
+				col_incr = -1
+			else:
+				raise ValueError("Can't realize this move because both pieces are in the same column")
+
+			# check if the path to the destination is empty
+			coord = list(piece_coord)
+			coord[0] += row_incr
+			coord[1] += col_incr
+			while tuple(coord) != destination:
+				square = self.board[coord[0]][coord[1]]
+				if square is not None:
+					raise ValueError('There is at least one piece in the path between the two pieces:', coord)
+
+				coord[0] += row_incr
+				coord[1] += col_incr
+		elif piece_coord[0] == destination[0] or piece_coord[0] == destination[0]:
+			# behaving like a rook
+			if piece_coord[0] == destination[0]:
+				# same row as destination
+				row = piece_coord[0]
+
+				if piece_coord[1] < destination[1]:
+					start = piece_coord[1]
+					end = destination[1]
+				else:
+					start = destination[1]
+					end = piece_coord[1]
+
+				for i in range(start + 1, end):
+					if self.board[row][i] is not None:
+						raise ValueError('There are other pieces between the origin and destination')
+			else:
+				# same column as destination
+				col = piece_coord[1]
+
+				if piece_coord[0] < destination[0]:
+					start = piece_coord[0]
+					end = destination[0]
+				else:
+					start = destination[0]
+					end = piece_coord[0]
+
+				for i in range(start + 1, end):
+					if self.board[i][col] is not None:
+						raise ValueError('There are other pieces between the origin and destination')
+
+		destination_piece = self.board[destination[0]][destination[1]]
+		if capture:
+			if destination_piece is None:
+				raise ValueError('There is no piece in the square to be captured')
+			if self.get_piece_color(destination_piece) == self.get_piece_color(piece):
+				raise ValueError("You can't capture your own piece")
+		if not capture and destination_piece is not None:
+			raise ValueError("That is a place where you're trying to move. Try the capture move")
+
+	# -----------------------------------------------------------------------------------------------------------------
+	#                                             MOVE HANDLERS
+	# -----------------------------------------------------------------------------------------------------------------
+	# These functions are designed to translate the algebraic notation into data to be used on the other functions.
+	# -----------------------------------------------------------------------------------------------------------------
+
 	def move_piece(self, movement):
 		destination = None
 		piece_coord = None
@@ -421,7 +557,6 @@ class Game:
 					raise ValueError('Invalid movement')
 
 				self.validate_rook_move(piece_coord, destination, self.is_move_capture(movement))
-			
 			elif movement[0] == 'N':
 				# knight
 				if self.is_normal_movement(movement, add):
@@ -471,7 +606,6 @@ class Game:
 					raise ValueError('Invalid movement')
 
 				self.validate_knight_move(piece_coord=piece_coord, destination=destination, capture=self.is_move_capture(movement))
-
 			elif movement[0] == 'B':
 				# bishop
 				# there is no no need to check for anmbiguous moviments because of the nature of different square
@@ -479,10 +613,21 @@ class Game:
 				destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
 				piece_coord = self.find_bishop(color=self.turn, destination=destination)
 
-				self.validate_bishop_move(piece_coord=piece_coord,destination=destination,capture=self.is_move_capture(movement))
+				self.validate_bishop_move(piece_coord=piece_coord, destination=destination, capture=self.is_move_capture(movement))
+			elif movement[0] == 'Q':
+				# queen
+				# I'll try to combine both the rook and bishop code into this one, since it seems like in the surface
+				# that it'll work
+				# Also it doesn't need to check for ambiguity because there is only one queen
+				destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
+				piece_coord = self.find_queen(color=self.turn, destination=destination)
 
+				self.validate_queen_move(piece_coord=piece_coord, destination=destination, capture=self.is_move_capture(movement))
+			else:
+				raise ValueError('This command is invalid')
 		elif movement[0] == 'x' or 97 <= ord(movement[0]) <= 104:
 			# pawn
+			# todo: pawn upgrade implementation (should be easy)
 			if 'x' in movement:
 				# capture with pawn
 				destination = (self.get_row(movement[3]), self.get_column(movement[2]))
@@ -498,7 +643,6 @@ class Game:
 				self.validate_pawn_move(piece_coord, destination)
 		else:
 			raise ValueError('This command is invalid')
-
 
 		print('move:', movement)
 		print('dest:', destination)
