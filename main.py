@@ -8,13 +8,5 @@ def move_piece(movement):
 game = Game()
 draw_board(game.get_board())
 
-'''
 while True:
     move_piece(input())
-'''
-
-move_piece('d3')
-move_piece('e6')
-move_piece('c3')
-move_piece('Bb4')
-move_piece('c4')

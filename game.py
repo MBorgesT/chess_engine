@@ -4,14 +4,17 @@ from copy import deepcopy
 # TODO:
 #   implement castle
 #   implement pawn upgrade
-#   implement check validation
 
 class CheckException(Exception):
+	pass
+
+class IlegalMoveException(Exception):
 	pass
 
 class Game:
 
 	def __init__(self):
+		'''
 		self.board = [
 			['br', 'bn', 'bb', 'bq', 'bk', 'bb', 'bn', 'br'],
 			['bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp'],
@@ -21,6 +24,18 @@ class Game:
 			[None, None, None, None, None, None, None, None],
 			['wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp'],
 			['wr', 'wn', 'wb', 'wq', 'wk', 'wb', 'wn', 'wr']
+		]
+		'''
+
+		self.board = [
+			['br', 'bn', 'bb', 'bq', 'bk', 'bb', None, None],
+			['bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'wp', 'wk'],
+			[None, None, None, None, None, None, None, None],
+			[None, None, None, None, None, None, None, None],
+			[None, None, None, None, None, None, None, None],
+			[None, None, None, None, None, None, None, None],
+			['wp', 'wp', 'wp', 'wp', 'wp', 'wp', None, 'wp'],
+			['wr', 'wn', 'wb', 'wq', None, 'wb', 'wn', 'wr']
 		]
 
 		self.moves = []
@@ -84,8 +99,8 @@ class Game:
 	def is_move_capture(self, move):
 		return 'x' in move
 
-	def raise_move_generates_check_exception(self):
-		raise CheckException('This move generates a check')
+	def raise_move_causes_self_check(self):
+		raise CheckException('This move causes yourself a check')
 
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                                 FINDERS
@@ -227,9 +242,12 @@ class Game:
 	# -----------------------------------------------------------------------------------------------------------------
 	# Once the piece to be moved is found, these functions validate if the move is legal. If not, it's exceptions are
 	# raised describing which rule was broken.
+	#
+	# TODO: check out if these functions still work with more than the default amount of pieces, because of pawn
+	# upgrades
 	# -----------------------------------------------------------------------------------------------------------------
 
-	def validate_move_generates_check(self, piece_coord, destination):
+	def validate_move_causes_self_check(self, piece_coord, destination):
 		board_copy = deepcopy(self.board)
 
 		king_coord = None
@@ -261,9 +279,9 @@ class Game:
 			for c in e_rook_coords:
 				self.validate_rook_move(c, king_coord, True)
 
-			self.raise_move_generates_check_exception()
+			self.raise_move_causes_self_check()
 		except CheckException:
-			self.raise_move_generates_check_exception()
+			self.raise_move_causes_self_check()
 		except:
 			# Couldn't capture
 			None
@@ -274,9 +292,9 @@ class Game:
 			for c in e_knight_coords:
 				self.validate_knight_move(c, king_coord, True)
 
-			self.raise_move_generates_check_exception()
+			self.raise_move_causes_self_check()
 		except CheckException:
-			self.raise_move_generates_check_exception()
+			self.raise_move_causes_self_check()
 		except:
 			# Couldn't capture
 			pass
@@ -285,10 +303,10 @@ class Game:
 		try:
 			e_bishop_coord = self.find_bishop(not self.turn, king_coord)
 			self.validate_bishop_move(e_bishop_coord, king_coord, True)
-			self.raise_move_generates_check_exception()
+			self.raise_move_causes_self_check()
 		except CheckException:
 			print('hello')
-			self.raise_move_generates_check_exception()
+			self.raise_move_causes_self_check()
 		except:
 			# Couldn't capture
 			pass
@@ -297,9 +315,9 @@ class Game:
 		try:
 			e_queen_coord = self.find_queen(not self.turn, king_coord)
 			self.validate_queen_move(e_queen_coord, king_coord, True)
-			self.raise_move_generates_check_exception()
+			self.raise_move_causes_self_check()
 		except CheckException:
-			self.raise_move_generates_check_exception()
+			self.raise_move_causes_self_check()
 		except:
 			# Couldn't capture
 			None
@@ -314,9 +332,9 @@ class Game:
 				e_king_coord = self.white_king_coord
 
 			self.validate_king_move(e_king_coord, king_coord, True)
-			self.raise_move_generates_check_exception()
+			self.raise_move_causes_self_check()
 		except CheckException:
-			self.raise_move_generates_check_exception()
+			self.raise_move_causes_self_check()
 		except:
 			# Couldn't capture
 			None
@@ -328,23 +346,23 @@ class Game:
 				if king_col - 1 >= 0:
 					possible_pawn = self.board[king_coord[0] - 1][king_col - 1]
 					if possible_pawn is not None and possible_pawn == 'bp':
-						self.raise_move_generates_check_exception()
+						self.raise_move_causes_self_check()
 				if king_col + 1 <= 8:
 					possible_pawn = self.board[king_coord[0] - 1][king_col + 1]
 					if possible_pawn is not None and possible_pawn == 'bp':
-						self.raise_move_generates_check_exception()
+						self.raise_move_causes_self_check()
 			else:
 				king_col = king_coord[1]
 				if king_col - 1 >= 0:
 					possible_pawn = self.board[king_coord[0] + 1][king_col - 1]
 					if possible_pawn is not None and possible_pawn == 'wp':
-						self.raise_move_generates_check_exception()
+						self.raise_move_causes_self_check()
 				if king_col + 1 <= 8:
 					possible_pawn = self.board[king_coord[0] + 1][king_col + 1]
 					if possible_pawn is not None and possible_pawn == 'wp':
-						self.raise_move_generates_check_exception()
+						self.raise_move_causes_self_check()
 		except CheckException:
-			self.raise_move_generates_check_exception()
+			self.raise_move_causes_self_check()
 		except:
 			# Couldn't captur
 			pass
@@ -714,7 +732,7 @@ class Game:
 		else:
 			raise ValueError('This command is invalid')
 
-		self.validate_move_generates_check(piece_coord, destination)
+		self.validate_move_causes_self_check(piece_coord, destination)
 
 		print('move:', movement)
 		print('dest:', destination)
@@ -726,6 +744,8 @@ class Game:
 				self.white_king_coord = destination
 			else:
 				self.black_king_coord = destination
+
+		self.handle_possible_pawn_upgrade(movement, piece_coord, destination)
 
 		# alterations on the board
 		self.board[destination[0]][destination[1]] = self.board[piece_coord[0]][piece_coord[1]]
@@ -749,7 +769,7 @@ class Game:
 
 		self.moves.append(movement)
 
-		self.turn = not self.turn
+		#self.turn = not self.turn
 
 		return [piece_coord, destination]
 
@@ -915,3 +935,22 @@ class Game:
 			                'solve this.')
 
 		return destination, piece_coord
+
+	def handle_possible_pawn_upgrade(self, movement, piece_coord, destination):
+		if '=' in movement:
+			# pawn upgrade
+			if self.turn == self.WHITE and destination[0] != 0:
+				raise ValueError('You can only upgrade the pawn in the last row')
+
+			if self.turn == self.BLACK and destination[0] != 7:
+				raise ValueError('You can only upgrade the pawn in the last row')
+
+			new_char = movement[-1]
+			if new_char in 'QBNR':
+				piece = self.board[piece_coord[0]][piece_coord[1]]
+				piece = piece[0] + new_char.lower()
+				self.board[piece_coord[0]][piece_coord[1]] = piece
+			else:
+				raise ValueError('Invalid piece code to upgrade to')
+		elif (self.turn == self.WHITE and destination[0] == 0) or (self.turn == self.BLACK and destination[0] == 7):
+			raise ValueError('You need to define the piece to upgrade to')
