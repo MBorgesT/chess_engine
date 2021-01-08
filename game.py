@@ -1,14 +1,22 @@
 from math import sin, cos, pi
+from copy import deepcopy
 
+# TODO:
+#   implement castle
+#   implement pawn upgrade
+#   implement check validation
+
+class CheckException(Exception):
+	pass
 
 class Game:
 
 	def __init__(self):
 		self.board = [
 			['br', 'bn', 'bb', 'bq', 'bk', 'bb', 'bn', 'br'],
-			['bp', None, 'bp', 'bp', 'bp', 'bp', 'bp', 'bp'],
+			['bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp'],
 			[None, None, None, None, None, None, None, None],
-			[None, 'bp', None, None, None, None, None, None],
+			[None, None, None, None, None, None, None, None],
 			[None, None, None, None, None, None, None, None],
 			[None, None, None, None, None, None, None, None],
 			['wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp'],
@@ -29,6 +37,9 @@ class Game:
 		self.en_passant_flag_black = False
 
 		self.en_passant_just_now = False
+
+		self.white_king_coord = None
+		self.black_king_coord = None
 
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                              AUXILIARY FUNCTIONS
@@ -73,6 +84,9 @@ class Game:
 	def is_move_capture(self, move):
 		return 'x' in move
 
+	def raise_move_generates_check_exception(self):
+		raise CheckException('This move generates a check')
+
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                                 FINDERS
 	# -----------------------------------------------------------------------------------------------------------------
@@ -105,30 +119,24 @@ class Game:
 
 	def find_rook(self, color, destination):
 		found = False
-		rook_coord = None
+		rook_coords = []
 
 		# going throw columns
 		for col in range(8):
 			piece = self.board[destination[0]][col]
 			if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == color:
-				if not found:
-					found = True
-					rook_coord = (destination[0], col)
-				else:
-					raise ValueError('Please inform which rook you want to move')
+				found = True
+				rook_coords.append((destination[0], col))
 
 		# going throw rows
 		for row in range(8):
 			piece = self.board[row][destination[1]]
 			if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == color:
-				if not found:
-					found = True
-					rook_coord = (row, destination[1])
-				else:
-					raise ValueError('Please inform which rook you want to move')
+				found = True
+				rook_coords.append((row, destination[1]))
 
 		if found:
-			return rook_coord
+			return rook_coords
 		else:
 			raise Exception('Rook not found. Check for bugs')
 
@@ -158,7 +166,6 @@ class Game:
 		if found:
 			return coords
 		else:
-			self.print_board()
 			raise ValueError('No knight was found')
 
 	def find_bishop(self, color, destination):
@@ -205,6 +212,16 @@ class Game:
 
 		raise ValueError('Queen not found')
 
+	def find_king(self, color, destination):
+		for i in range(-1, 2):
+			for j in range(-1, 2):
+				if (i != 0 or j != 0) and self.validate_coord_out_of_board((destination[0] + i, destination[1] + j)):
+					piece = self.board[destination[0] + i][destination[1] + j]
+					if piece is not None and piece[1] == 'k' and self.get_piece_color(piece) == color:
+						return (destination[0] + i, destination[1] + j)
+
+		raise ValueError('Could not find the king')
+
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                               VALIDATORS
 	# -----------------------------------------------------------------------------------------------------------------
@@ -213,7 +230,127 @@ class Game:
 	# -----------------------------------------------------------------------------------------------------------------
 
 	def validate_move_generates_check(self, piece_coord, destination):
-		raise Exception('Not yet implemented')
+		board_copy = deepcopy(self.board)
+
+		king_coord = None
+		king_str = None
+
+		if self.turn == self.WHITE:
+			king_str = 'wk'
+		else:
+			king_str = 'bk'
+
+		# maybe change this to go reverse in the rows if the king is white for performance
+		for i in range(8):
+			found = False
+			for j in range(8):
+				if self.board[i][j] == king_str:
+					king_coord = (i, j)
+					found = True
+					break
+			if found:
+				break
+
+		# alterations on the board
+		self.board[destination[0]][destination[1]] = self.board[piece_coord[0]][piece_coord[1]]
+		self.board[piece_coord[0]][piece_coord[1]] = None
+
+		# rook part
+		try:
+			e_rook_coords = self.find_rook(not self.turn, king_coord)
+			for c in e_rook_coords:
+				self.validate_rook_move(c, king_coord, True)
+
+			self.raise_move_generates_check_exception()
+		except CheckException:
+			self.raise_move_generates_check_exception()
+		except:
+			# Couldn't capture
+			None
+
+		# knight part
+		try:
+			e_knight_coords = self.find_knight(not self.turn, king_coord)
+			for c in e_knight_coords:
+				self.validate_knight_move(c, king_coord, True)
+
+			self.raise_move_generates_check_exception()
+		except CheckException:
+			self.raise_move_generates_check_exception()
+		except:
+			# Couldn't capture
+			pass
+
+		# bishop part
+		try:
+			e_bishop_coord = self.find_bishop(not self.turn, king_coord)
+			self.validate_bishop_move(e_bishop_coord, king_coord, True)
+			self.raise_move_generates_check_exception()
+		except CheckException:
+			print('hello')
+			self.raise_move_generates_check_exception()
+		except:
+			# Couldn't capture
+			pass
+
+		# queen part
+		try:
+			e_queen_coord = self.find_queen(not self.turn, king_coord)
+			self.validate_queen_move(e_queen_coord, king_coord, True)
+			self.raise_move_generates_check_exception()
+		except CheckException:
+			self.raise_move_generates_check_exception()
+		except:
+			# Couldn't capture
+			None
+
+		# king part
+		try:
+			e_king_coord = None
+
+			if self.turn == self.WHITE:
+				e_king_coord = self.black_king_coord
+			else:
+				e_king_coord = self.white_king_coord
+
+			self.validate_king_move(e_king_coord, king_coord, True)
+			self.raise_move_generates_check_exception()
+		except CheckException:
+			self.raise_move_generates_check_exception()
+		except:
+			# Couldn't capture
+			None
+
+		# it's needed to validate the pawns manually here because the other functions don't work in this case
+		try:
+			if self.turn == self.WHITE:
+				king_col = king_coord[1]
+				if king_col - 1 >= 0:
+					possible_pawn = self.board[king_coord[0] - 1][king_col - 1]
+					if possible_pawn is not None and possible_pawn == 'bp':
+						self.raise_move_generates_check_exception()
+				if king_col + 1 <= 8:
+					possible_pawn = self.board[king_coord[0] - 1][king_col + 1]
+					if possible_pawn is not None and possible_pawn == 'bp':
+						self.raise_move_generates_check_exception()
+			else:
+				king_col = king_coord[1]
+				if king_col - 1 >= 0:
+					possible_pawn = self.board[king_coord[0] + 1][king_col - 1]
+					if possible_pawn is not None and possible_pawn == 'wp':
+						self.raise_move_generates_check_exception()
+				if king_col + 1 <= 8:
+					possible_pawn = self.board[king_coord[0] + 1][king_col + 1]
+					if possible_pawn is not None and possible_pawn == 'wp':
+						self.raise_move_generates_check_exception()
+		except CheckException:
+			self.raise_move_generates_check_exception()
+		except:
+			# Couldn't captur
+			pass
+
+		# going back to normal
+		self.board = deepcopy(board_copy)
 
 	def validate_coord_out_of_board(self, coord):
 		return 0 <= coord[0] <= 7 and 0 <= coord[1] <= 7
@@ -523,8 +660,23 @@ class Game:
 		if not capture and destination_piece is not None:
 			raise ValueError("That is a place where you're trying to move. Try the capture move")
 
+	def validate_king_move(self, piece_coord, destination, capture):
+		# there is no need to check if there is something in between the two pieces because the king can only move one
+		# square each time
+		piece = self.board[piece_coord[0]][piece_coord[1]]
+		destination_square = self.board[destination[0]][destination[1]]
+
+		if capture:
+			if destination_square is None:
+				raise ValueError('There is nothing to capture in this square')
+			elif self.get_piece_color(piece) == self.get_piece_color(destination_square):
+				raise ValueError("You cant' capture your own piece")
+		else:
+			if destination_square is not None:
+				raise ValueError('There is a piece in the square you want to move to')
+
 	# -----------------------------------------------------------------------------------------------------------------
-	#                                             MOVE HANDLERS
+	#                                 ALGEBRAIC NOTATION TRANSLATORS AND MOVE HANDLER
 	# -----------------------------------------------------------------------------------------------------------------
 	# These functions are designed to translate the algebraic notation into data to be used on the other functions.
 	# -----------------------------------------------------------------------------------------------------------------
@@ -551,17 +703,29 @@ class Game:
 			elif movement[0] == 'Q':
 				# queen
 				destination, piece_coord = self.handle_queen_move(movement, add)
+			elif movement[0] == 'K':
+				# king
+				destination, piece_coord = self.handle_king_move(movement, add)
 			else:
 				raise ValueError('This command is invalid')
 		elif movement[0] == 'x' or 97 <= ord(movement[0]) <= 104:
 			# pawn
-			destination, piece_coord = self.handle_pawn(movement)
+			destination, piece_coord = self.handle_pawn_move(movement)
 		else:
 			raise ValueError('This command is invalid')
+
+		self.validate_move_generates_check(piece_coord, destination)
 
 		print('move:', movement)
 		print('dest:', destination)
 		print('orgn:', piece_coord, '\n')
+
+		# tracking the kings moves
+		if movement[0] == 'K':
+			if self.turn == self.WHITE:
+				self.white_king_coord = destination
+			else:
+				self.black_king_coord = destination
 
 		# alterations on the board
 		self.board[destination[0]][destination[1]] = self.board[piece_coord[0]][piece_coord[1]]
@@ -585,7 +749,7 @@ class Game:
 
 		self.moves.append(movement)
 
-		# self.turn = not self.turn
+		self.turn = not self.turn
 
 		return [piece_coord, destination]
 
@@ -619,7 +783,14 @@ class Game:
 		if self.is_normal_movement(movement, add):
 			# not in the same column or row
 			destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
-			piece_coord = self.find_rook(self.turn, destination)
+			coords = self.find_rook(self.turn, destination)
+
+			if len(coords) == 1:
+				piece_coord = coords[0]
+			elif len(coords) == 2:
+				raise ValueError('Please specify which rook you want to move')
+			else:
+				raise Exception('Something went wrong. This should not have been called')
 		elif self.is_same_row_movement(movement, add):
 			# in the same row
 			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
@@ -723,6 +894,20 @@ class Game:
 
 		self.validate_queen_move(piece_coord=piece_coord, destination=destination,
 		                         capture=self.is_move_capture(movement))
+
+		if destination is None or piece_coord is None:
+			raise Exception('Something went wrong. This should not happen in any case because if this conditional is '
+			                'true, other exception calls should have triggered before. Go for a walk and then try to '
+			                'solve this.')
+
+		return destination, piece_coord
+
+	def handle_king_move(self, movement, add):
+		# In the same way as the queen, there is no reason to check for ambiguity because there is only one king
+		destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
+		piece_coord = self.find_king(color=self.turn, destination=destination)
+
+		self.validate_king_move(piece_coord=piece_coord, destination=destination, capture=self.is_move_capture(movement))
 
 		if destination is None or piece_coord is None:
 			raise Exception('Something went wrong. This should not happen in any case because if this conditional is '
