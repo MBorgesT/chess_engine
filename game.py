@@ -11,6 +11,9 @@ class CheckException(Exception):
 class IlegalMoveException(Exception):
 	pass
 
+WHITE = True
+BLACK = False
+
 class Game:
 
 	def __init__(self):
@@ -40,10 +43,7 @@ class Game:
 
 		self.moves = []
 
-		# True == white; False == black
-		self.WHITE = True
-		self.BLACK = False
-		self.turn = self.WHITE
+		self.turn = WHITE
 
 		self.en_passant_coord_white = None
 		self.en_passant_coord_black = None
@@ -65,9 +65,9 @@ class Game:
 
 	def get_piece_color(self, piece):
 		if piece[0] == 'w':
-			return self.WHITE
+			return WHITE
 		elif piece[0] == 'b':
-			return self.BLACK
+			return BLACK
 		else:
 			raise Exception("It's not possible to identify the piece's color")
 
@@ -111,7 +111,7 @@ class Game:
 
 	def find_pawn(self, color, column, limit):
 		piece_coord = None
-		if color == self.WHITE:
+		if color == WHITE:
 			for i in range(6, limit, -1):
 				piece = self.board[i][column]
 				if piece is not None and self.is_piece_white(piece):
@@ -127,7 +127,7 @@ class Game:
 		return piece_coord
 
 	def find_capturer_pawn(self, color, destination_row, origin_column):
-		if color == self.WHITE:
+		if color == WHITE:
 			return (destination_row + 1, origin_column)
 		else:
 			return (destination_row - 1, origin_column)
@@ -181,7 +181,7 @@ class Game:
 		if found:
 			return coords
 		else:
-			raise ValueError('No knight was found')
+			raise IlegalMoveException('No knight was found')
 
 	def find_bishop(self, color, destination):
 		for i in range(-1, 2, 2):
@@ -196,7 +196,7 @@ class Game:
 					coord[0] += i
 					coord[1] += j
 
-		raise ValueError('Could not find bishop')
+		raise IlegalMoveException('Could not find bishop')
 
 	def find_queen(self, color, destination):
 		# rook-like part
@@ -225,7 +225,7 @@ class Game:
 					coord[0] += i
 					coord[1] += j
 
-		raise ValueError('Queen not found')
+		raise IlegalMoveException('Queen not found')
 
 	def find_king(self, color, destination):
 		for i in range(-1, 2):
@@ -235,7 +235,7 @@ class Game:
 					if piece is not None and piece[1] == 'k' and self.get_piece_color(piece) == color:
 						return (destination[0] + i, destination[1] + j)
 
-		raise ValueError('Could not find the king')
+		raise IlegalMoveException('Could not find the king')
 
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                               VALIDATORS
@@ -253,7 +253,7 @@ class Game:
 		king_coord = None
 		king_str = None
 
-		if self.turn == self.WHITE:
+		if self.turn == WHITE:
 			king_str = 'wk'
 		else:
 			king_str = 'bk'
@@ -326,7 +326,7 @@ class Game:
 		try:
 			e_king_coord = None
 
-			if self.turn == self.WHITE:
+			if self.turn == WHITE:
 				e_king_coord = self.black_king_coord
 			else:
 				e_king_coord = self.white_king_coord
@@ -341,7 +341,7 @@ class Game:
 
 		# it's needed to validate the pawns manually here because the other functions don't work in this case
 		try:
-			if self.turn == self.WHITE:
+			if self.turn == WHITE:
 				king_col = king_coord[1]
 				if king_col - 1 >= 0:
 					possible_pawn = self.board[king_coord[0] - 1][king_col - 1]
@@ -378,22 +378,22 @@ class Game:
 		piece = self.board[piece_coord[0]][piece_coord[1]]
 
 		if piece is None:
-			raise ValueError('There is no piece in the origin square')
+			raise IlegalMoveException('There is no piece in the origin square')
 
 		if piece[1] != 'p':
-			raise ValueError('Wrong piece passed as parameter:', piece)
+			raise IlegalMoveException('Wrong piece passed as parameter:', piece)
 
 		# check if same row
 		if piece_coord[1] == destination[1]:
 
 			# check if column distance is ok
 			if abs(piece_coord[1] - destination[1]) != 0:
-				raise ValueError('Column distance is invalid')
+				raise IlegalMoveException('Column distance is invalid')
 
 			# check if there is any piece in the destination
 			destination_piece = self.board[destination[0]][destination[1]]
 			if destination_piece is not None:
-				raise ValueError('There is a piece in the destination square')
+				raise IlegalMoveException('There is a piece in the destination square')
 
 			row_distance = piece_coord[0] - destination[0]
 
@@ -401,47 +401,47 @@ class Game:
 				# check if distance is correct
 				if row_distance == 2:
 					if piece_coord[0] != 6:
-						raise ValueError('Wrong row distance:', row_distance)
+						raise IlegalMoveException('Wrong row distance:', row_distance)
 					elif self.board[piece_coord[0] - 1][piece_coord[1]] is not None:
-						raise ValueError('There is another piece in the way')
+						raise IlegalMoveException('There is another piece in the way')
 
 					self.en_passant_coord_white = (5, piece_coord[1])
 					self.en_passant_just_now = True
 				elif row_distance != 1:
-					raise ValueError('Wrong row distance', row_distance)
+					raise IlegalMoveException('Wrong row distance', row_distance)
 			elif piece[0] == 'b':
 				# check if distance is correct
 				if row_distance == -2:
 					if piece_coord[0] != 1:
-						raise ValueError('Wrong row distance:', row_distance)
+						raise IlegalMoveException('Wrong row distance:', row_distance)
 					elif self.board[piece_coord[0] + 1][piece_coord[1]] is not None:
-						raise ValueError('There is another piece in the way')
+						raise IlegalMoveException('There is another piece in the way')
 
 					self.en_passant_coord_black = (2, piece_coord[1])
 					self.en_passant_just_now = True
 				elif row_distance != -1:
-					raise ValueError('Wrong row distance', row_distance)
+					raise IlegalMoveException('Wrong row distance', row_distance)
 
 		else:
 
-			raise ValueError('This is not a capture move')
+			raise IlegalMoveException('This is not a capture move')
 
 	def validate_capture_with_pawn(self, piece_coord, destination):
 		# destination and piece_coord: [row, column]
 		piece = self.board[piece_coord[0]][piece_coord[1]]
 
 		if piece is None:
-			raise ValueError('There is no piece in the origin square')
+			raise IlegalMoveException('There is no piece in the origin square')
 
 		if piece[1] != 'p':
-			raise ValueError('Wrong piece passed as parameter:', piece)
+			raise IlegalMoveException('Wrong piece passed as parameter:', piece)
 
 		# check if different row
 		if piece_coord[1] != destination[1]:
 
 			# check if column distance is ok
 			if abs(piece_coord[1] - destination[1]) != 1:
-				raise ValueError('Column distance is invalid')
+				raise IlegalMoveException('Column distance is invalid')
 
 			# check if there is enemy piece in the destination
 			destination_piece = self.board[destination[0]][destination[1]]
@@ -449,7 +449,7 @@ class Game:
 				# en passant possibility
 				if (self.is_piece_white(piece) and self.en_passant_coord_black != destination) or (
 						self.is_piece_black(piece) and self.en_passant_coord_white != destination):
-					raise ValueError('There is no piece in the destination square to capture')
+					raise IlegalMoveException('There is no piece in the destination square to capture')
 				else:
 					# set a flag to sign on move_piece function that a en passant was done
 					if self.is_piece_white(piece):
@@ -457,38 +457,38 @@ class Game:
 					else:
 						self.en_passant_flag_black = True
 			elif self.get_piece_color(destination_piece) == self.get_piece_color(piece):
-				raise ValueError("You can't capture your own piece")
+				raise IlegalMoveException("You can't capture your own piece")
 
 			if piece[0] == 'w':
 				# check if distance is correct
 				if piece_coord[0] - destination[0] != 1:
-					raise ValueError('Wrong row distance')
+					raise IlegalMoveException('Wrong row distance')
 			elif piece[0] == 'b':
 				# check if distance is correct
 				if piece_coord[0] - destination[0] != -1:
-					raise ValueError('Wrong row distance')
+					raise IlegalMoveException('Wrong row distance')
 			else:
-				raise ValueError('Wrong color passed as parameter:', piece)
+				raise IlegalMoveException('Wrong color passed as parameter:', piece)
 
 		else:
 
-			raise ValueError('This is not a capture move')
+			raise IlegalMoveException('This is not a capture move')
 
 	def validate_rook_move(self, piece_coord, destination, capture):
 		# destination and piece_coord: (row, column)
 		piece = self.board[piece_coord[0]][piece_coord[1]]
 
 		if piece is None:
-			raise ValueError('There is no piece in the origin square')
+			raise IlegalMoveException('There is no piece in the origin square')
 
 		if piece[1] != 'r':
-			raise ValueError('Wrong piece passed as parameter:', piece)
+			raise IlegalMoveException('Wrong piece passed as parameter:', piece)
 
 		if piece_coord[0] != destination[0] and piece_coord[1] != destination[1]:
-			raise ValueError('Piece not in the same row or column as destination')
+			raise IlegalMoveException('Piece not in the same row or column as destination')
 
 		if piece_coord[0] == destination[0] and piece_coord[1] == destination[1]:
-			raise ValueError("You can't move to the same square")
+			raise IlegalMoveException("You can't move to the same square")
 
 		if piece_coord[0] == destination[0]:
 			# same row as destination
@@ -503,7 +503,7 @@ class Game:
 
 			for i in range(start + 1, end):
 				if self.board[row][i] is not None:
-					raise ValueError('There are other pieces between the origin and destination')
+					raise IlegalMoveException('There are other pieces between the origin and destination')
 		else:
 			# same column as destination
 			col = piece_coord[1]
@@ -517,45 +517,45 @@ class Game:
 
 			for i in range(start + 1, end):
 				if self.board[i][col] is not None:
-					raise ValueError('There are other pieces between the origin and destination')
+					raise IlegalMoveException('There are other pieces between the origin and destination')
 
 		destination_piece = self.board[destination[0]][destination[1]]
 		if capture:
 			if destination_piece is None:
-				raise ValueError('There is no piece in the square to be captured')
+				raise IlegalMoveException('There is no piece in the square to be captured')
 			if self.get_piece_color(destination_piece) == self.get_piece_color(piece):
-				raise ValueError("You can't capture your own piece")
+				raise IlegalMoveException("You can't capture your own piece")
 		if not capture and destination_piece is not None:
-			raise ValueError("That is a place where you're trying to move. Try the capture move")
+			raise IlegalMoveException("That is a place where you're trying to move. Try the capture move")
 
 	def validate_knight_move(self, piece_coord, destination, capture):
 		# destination and piece_coord: (row, column)
 		piece = self.board[piece_coord[0]][piece_coord[1]]
 
 		if piece is None:
-			raise ValueError('There is no piece in the origin square')
+			raise IlegalMoveException('There is no piece in the origin square')
 
 		if piece[1] != 'n':
-			raise ValueError('Wrong piece passed as parameter:', piece)
+			raise IlegalMoveException('Wrong piece passed as parameter:', piece)
 
 		destination_piece = self.board[destination[0]][destination[1]]
 		if capture:
 			if destination_piece is None:
-				raise ValueError('There is no piece in the square to be captured')
+				raise IlegalMoveException('There is no piece in the square to be captured')
 			if self.get_piece_color(destination_piece) == self.get_piece_color(piece):
-				raise ValueError("You can't capture your own piece")
+				raise IlegalMoveException("You can't capture your own piece")
 		if not capture and destination_piece is not None:
-			raise ValueError("That is a place where you're trying to move. Try the capture move")
+			raise IlegalMoveException("That is a place where you're trying to move. Try the capture move")
 
 	def validate_bishop_move(self, piece_coord, destination, capture):
 		# destination and piece_coord: (row, column)
 		piece = self.board[piece_coord[0]][piece_coord[1]]
 
 		if piece is None:
-			raise ValueError('There is no piece in the origin square')
+			raise IlegalMoveException('There is no piece in the origin square')
 
 		if piece[1] != 'b':
-			raise ValueError('Wrong piece passed as parameter:', piece)
+			raise IlegalMoveException('Wrong piece passed as parameter:', piece)
 
 		# get the direction to go to
 		row_incr = None
@@ -564,7 +564,7 @@ class Game:
 		elif destination[0] - piece_coord[0] < 0:
 			row_incr = -1
 		else:
-			raise ValueError("Can't realize this move because both pieces are in the same row")
+			raise IlegalMoveException("Can't realize this move because both pieces are in the same row")
 
 		col_incr = None
 		if destination[1] - piece_coord[1] > 0:
@@ -572,7 +572,7 @@ class Game:
 		elif destination[1] - piece_coord[1] < 0:
 			col_incr = -1
 		else:
-			raise ValueError("Can't realize this move because both pieces are in the same column")
+			raise IlegalMoveException("Can't realize this move because both pieces are in the same column")
 
 		# check if the path to the destination is empty
 		coord = list(piece_coord)
@@ -581,7 +581,7 @@ class Game:
 		while tuple(coord) != destination:
 			square = self.board[coord[0]][coord[1]]
 			if square is not None:
-				raise ValueError('There is at least one piece in the path between the two pieces:', coord)
+				raise IlegalMoveException('There is at least one piece in the path between the two pieces:', coord)
 
 			coord[0] += row_incr
 			coord[1] += col_incr
@@ -589,24 +589,24 @@ class Game:
 		destination_piece = self.board[destination[0]][destination[1]]
 		if capture:
 			if destination_piece is None:
-				raise ValueError('There is no piece in the square to be captured')
+				raise IlegalMoveException('There is no piece in the square to be captured')
 			if self.get_piece_color(destination_piece) == self.get_piece_color(piece):
-				raise ValueError("You can't capture your own piece")
+				raise IlegalMoveException("You can't capture your own piece")
 		if not capture and destination_piece is not None:
-			raise ValueError("That is a place where you're trying to move. Try the capture move")
+			raise IlegalMoveException("That is a place where you're trying to move. Try the capture move")
 
 	def validate_queen_move(self, piece_coord, destination, capture):
 		# destination and piece_coord: (row, column)
 		piece = self.board[piece_coord[0]][piece_coord[1]]
 
 		if piece is None:
-			raise ValueError('There is no piece in the origin square')
+			raise IlegalMoveException('There is no piece in the origin square')
 
 		if piece[1] != 'q':
-			raise ValueError('Wrong piece passed as parameter:', piece)
+			raise IlegalMoveException('Wrong piece passed as parameter:', piece)
 
 		if piece_coord[0] == destination[0] and piece_coord[1] == destination[1]:
-			raise ValueError("You can't move to the same square")
+			raise IlegalMoveException("You can't move to the same square")
 
 		if abs(piece_coord[0] - destination[0]) == abs(piece_coord[1] - destination[1]):
 			# behaving like a bishop
@@ -617,7 +617,7 @@ class Game:
 			elif destination[0] - piece_coord[0] < 0:
 				row_incr = -1
 			else:
-				raise ValueError("Can't realize this move because both pieces are in the same row")
+				raise IlegalMoveException("Can't realize this move because both pieces are in the same row")
 
 			col_incr = None
 			if destination[1] - piece_coord[1] > 0:
@@ -625,7 +625,7 @@ class Game:
 			elif destination[1] - piece_coord[1] < 0:
 				col_incr = -1
 			else:
-				raise ValueError("Can't realize this move because both pieces are in the same column")
+				raise IlegalMoveException("Can't realize this move because both pieces are in the same column")
 
 			# check if the path to the destination is empty
 			coord = list(piece_coord)
@@ -634,7 +634,7 @@ class Game:
 			while tuple(coord) != destination:
 				square = self.board[coord[0]][coord[1]]
 				if square is not None:
-					raise ValueError('There is at least one piece in the path between the two pieces:', coord)
+					raise IlegalMoveException('There is at least one piece in the path between the two pieces:', coord)
 
 				coord[0] += row_incr
 				coord[1] += col_incr
@@ -653,7 +653,7 @@ class Game:
 
 				for i in range(start + 1, end):
 					if self.board[row][i] is not None:
-						raise ValueError('There are other pieces between the origin and destination')
+						raise IlegalMoveException('There are other pieces between the origin and destination')
 			else:
 				# same column as destination
 				col = piece_coord[1]
@@ -667,16 +667,16 @@ class Game:
 
 				for i in range(start + 1, end):
 					if self.board[i][col] is not None:
-						raise ValueError('There are other pieces between the origin and destination')
+						raise IlegalMoveException('There are other pieces between the origin and destination')
 
 		destination_piece = self.board[destination[0]][destination[1]]
 		if capture:
 			if destination_piece is None:
-				raise ValueError('There is no piece in the square to be captured')
+				raise IlegalMoveException('There is no piece in the square to be captured')
 			if self.get_piece_color(destination_piece) == self.get_piece_color(piece):
-				raise ValueError("You can't capture your own piece")
+				raise IlegalMoveException("You can't capture your own piece")
 		if not capture and destination_piece is not None:
-			raise ValueError("That is a place where you're trying to move. Try the capture move")
+			raise IlegalMoveException("That is a place where you're trying to move. Try the capture move")
 
 	def validate_king_move(self, piece_coord, destination, capture):
 		# there is no need to check if there is something in between the two pieces because the king can only move one
@@ -686,12 +686,12 @@ class Game:
 
 		if capture:
 			if destination_square is None:
-				raise ValueError('There is nothing to capture in this square')
+				raise IlegalMoveException('There is nothing to capture in this square')
 			elif self.get_piece_color(piece) == self.get_piece_color(destination_square):
-				raise ValueError("You cant' capture your own piece")
+				raise IlegalMoveException("You cant' capture your own piece")
 		else:
 			if destination_square is not None:
-				raise ValueError('There is a piece in the square you want to move to')
+				raise IlegalMoveException('There is a piece in the square you want to move to')
 
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                 ALGEBRAIC NOTATION TRANSLATORS AND MOVE HANDLER
@@ -725,12 +725,12 @@ class Game:
 				# king
 				destination, piece_coord = self.handle_king_move(movement, add)
 			else:
-				raise ValueError('This command is invalid')
+				raise IlegalMoveException('This command is invalid')
 		elif movement[0] == 'x' or 97 <= ord(movement[0]) <= 104:
 			# pawn
 			destination, piece_coord = self.handle_pawn_move(movement)
 		else:
-			raise ValueError('This command is invalid')
+			raise IlegalMoveException('This command is invalid')
 
 		self.validate_move_causes_self_check(piece_coord, destination)
 
@@ -740,7 +740,7 @@ class Game:
 
 		# tracking the kings moves
 		if movement[0] == 'K':
-			if self.turn == self.WHITE:
+			if self.turn == WHITE:
 				self.white_king_coord = destination
 			else:
 				self.black_king_coord = destination
@@ -762,7 +762,7 @@ class Game:
 		if self.en_passant_just_now:
 			self.en_passant_just_now = False
 		else:
-			if self.turn == self.WHITE:
+			if self.turn == WHITE:
 				self.en_passant_coord_white = None
 			else:
 				self.en_passant_coord_black = None
@@ -808,7 +808,7 @@ class Game:
 			if len(coords) == 1:
 				piece_coord = coords[0]
 			elif len(coords) == 2:
-				raise ValueError('Please specify which rook you want to move')
+				raise IlegalMoveException('Please specify which rook you want to move')
 			else:
 				raise Exception('Something went wrong. This should not have been called')
 		elif self.is_same_row_movement(movement, add):
@@ -821,7 +821,7 @@ class Game:
 			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
 			piece_coord = (self.get_row(movement[1]), self.get_column(movement[2 + add]))
 		else:
-			raise ValueError('Invalid movement')
+			raise IlegalMoveException('Invalid movement')
 
 		self.validate_rook_move(piece_coord, destination, self.is_move_capture(movement))
 
@@ -842,7 +842,7 @@ class Game:
 				piece_coord = coords[0]
 			else:
 				# checking for 0 is already done in the find_knight function
-				raise ValueError('Please inform which one of the knights you want to move')
+				raise IlegalMoveException('Please inform which one of the knights you want to move')
 		elif self.is_same_row_movement(movement, add):
 			# in the same row
 			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
@@ -857,9 +857,9 @@ class Game:
 				elif coords[1][1] == col:
 					piece_coord = coords[1]
 				else:
-					raise ValueError("Couldn't find a knight with the specified command")
+					raise IlegalMoveException("Couldn't find a knight with the specified command")
 			else:
-				raise ValueError('The number of knights found is more than two:', len(coords))
+				raise IlegalMoveException('The number of knights found is more than two:', len(coords))
 		elif self.is_same_col_movement(movement, add):
 			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
 			row = self.get_row(movement[1])
@@ -873,11 +873,11 @@ class Game:
 				elif coords[1][0] == row:
 					piece_coord = coords[1]
 				else:
-					raise ValueError("Couldn't find a knight with the specified command")
+					raise IlegalMoveException("Couldn't find a knight with the specified command")
 			else:
-				raise ValueError('The number of knights found is more than two:', len(coords))
+				raise IlegalMoveException('The number of knights found is more than two:', len(coords))
 		else:
-			raise ValueError('Invalid movement')
+			raise IlegalMoveException('Invalid movement')
 
 		self.validate_knight_move(piece_coord=piece_coord, destination=destination,
 		                          capture=self.is_move_capture(movement))
@@ -939,11 +939,11 @@ class Game:
 	def handle_possible_pawn_upgrade(self, movement, piece_coord, destination):
 		if '=' in movement:
 			# pawn upgrade
-			if self.turn == self.WHITE and destination[0] != 0:
-				raise ValueError('You can only upgrade the pawn in the last row')
+			if self.turn == WHITE and destination[0] != 0:
+				raise IlegalMoveException('You can only upgrade the pawn in the last row')
 
-			if self.turn == self.BLACK and destination[0] != 7:
-				raise ValueError('You can only upgrade the pawn in the last row')
+			if self.turn == BLACK and destination[0] != 7:
+				raise IlegalMoveException('You can only upgrade the pawn in the last row')
 
 			new_char = movement[-1]
 			if new_char in 'QBNR':
@@ -951,6 +951,6 @@ class Game:
 				piece = piece[0] + new_char.lower()
 				self.board[piece_coord[0]][piece_coord[1]] = piece
 			else:
-				raise ValueError('Invalid piece code to upgrade to')
-		elif (self.turn == self.WHITE and destination[0] == 0) or (self.turn == self.BLACK and destination[0] == 7):
-			raise ValueError('You need to define the piece to upgrade to')
+				raise IlegalMoveException('Invalid piece code to upgrade to')
+		elif (self.turn == WHITE and destination[0] == 0) or (self.turn == BLACK and destination[0] == 7):
+			raise IlegalMoveException('You need to define the piece to upgrade to')
