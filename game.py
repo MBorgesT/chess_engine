@@ -3,9 +3,8 @@ from copy import deepcopy
 
 # TODO:
 #   implement castle
-#   implement pawn upgrade
 
-class CheckException(Exception):
+class SelfCheckException(Exception):
 	pass
 
 class IlegalMoveException(Exception):
@@ -100,7 +99,7 @@ class Game:
 		return 'x' in move
 
 	def raise_move_causes_self_check(self):
-		raise CheckException('This move causes yourself a check')
+		raise SelfCheckException('This move causes yourself a check')
 
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                                 FINDERS
@@ -280,7 +279,7 @@ class Game:
 				self.validate_rook_move(c, king_coord, True)
 
 			self.raise_move_causes_self_check()
-		except CheckException:
+		except SelfCheckException:
 			self.raise_move_causes_self_check()
 		except:
 			# Couldn't capture
@@ -293,7 +292,7 @@ class Game:
 				self.validate_knight_move(c, king_coord, True)
 
 			self.raise_move_causes_self_check()
-		except CheckException:
+		except SelfCheckException:
 			self.raise_move_causes_self_check()
 		except:
 			# Couldn't capture
@@ -304,8 +303,7 @@ class Game:
 			e_bishop_coord = self.find_bishop(not self.turn, king_coord)
 			self.validate_bishop_move(e_bishop_coord, king_coord, True)
 			self.raise_move_causes_self_check()
-		except CheckException:
-			print('hello')
+		except SelfCheckException:
 			self.raise_move_causes_self_check()
 		except:
 			# Couldn't capture
@@ -316,7 +314,7 @@ class Game:
 			e_queen_coord = self.find_queen(not self.turn, king_coord)
 			self.validate_queen_move(e_queen_coord, king_coord, True)
 			self.raise_move_causes_self_check()
-		except CheckException:
+		except SelfCheckException:
 			self.raise_move_causes_self_check()
 		except:
 			# Couldn't capture
@@ -333,7 +331,7 @@ class Game:
 
 			self.validate_king_move(e_king_coord, king_coord, True)
 			self.raise_move_causes_self_check()
-		except CheckException:
+		except SelfCheckException:
 			self.raise_move_causes_self_check()
 		except:
 			# Couldn't capture
@@ -361,7 +359,7 @@ class Game:
 					possible_pawn = self.board[king_coord[0] + 1][king_col + 1]
 					if possible_pawn is not None and possible_pawn == 'wp':
 						self.raise_move_causes_self_check()
-		except CheckException:
+		except SelfCheckException:
 			self.raise_move_causes_self_check()
 		except:
 			# Couldn't captur
