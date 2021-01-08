@@ -2,7 +2,7 @@ from math import sin, cos, pi
 from copy import deepcopy
 
 # TODO:
-#   implement castle
+#   check for checkmate
 
 class CheckException(Exception):
 	pass
@@ -33,14 +33,14 @@ class Game:
 		'''
 
 		self.board = [
-			['br', 'bn', 'bb', 'bq', 'bk', None, None, 'br'],
-			['bp', 'bp', 'bp', 'bp', None, 'bp', 'bp', 'bp'],
-			[None, None, None, None, None, 'bn', None, None],
-			[None, None, 'bb', None, None, None, None, None],
-			[None, None, None, None, 'wp', 'bp', None, None],
-			[None, None, None, 'wb', None, 'wn', None, None],
-			['wp', 'wp', 'wp', 'wp', None, None, 'wp', 'wp'],
-			['wr', 'wn', 'wb', 'wq', 'wk', None, None, 'wr']
+			['br', None, None, None, 'bk', None, None, 'br'],
+			['bp', 'bp', 'bp', None, 'bp', 'bp', 'bp', 'bp'],
+			[None, None, None, None, None, None, None, None],
+			[None, None, None, None, None, 'wb', None, None],
+			[None, None, None, None, None, None, None, None],
+			[None, None, None, None, None, None, None, None],
+			['wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp'],
+			[None, None, None, None, 'wk', None, 'wn', 'wr']
 		]
 
 		self.moves = []
@@ -523,7 +523,7 @@ class Game:
 
 				coord[0] += row_incr
 				coord[1] += col_incr
-		elif piece_coord[0] == destination[0] or piece_coord[0] == destination[0]:
+		elif piece_coord[0] == destination[0] or piece_coord[1] == destination[1]:
 			# behaving like a rook
 			if piece_coord[0] == destination[0]:
 				# same row as destination
@@ -583,86 +583,55 @@ class Game:
 
 	def validate_castle_move(self, movement):
 		if self.turn == WHITE:
-			if self.white_king_has_moved:
-				raise IlegalMoveException('The king has already moved')
-
-			try:
-				# we already know that the queen is in the default square because of previous validations
-				self.validate_square_in_check((7, 4), piece_at_square=True)
-			except CheckException:
-				raise IlegalMoveException('The king is in check')
-
-			if movement == '0-0' or movement == 'O-O':
-				# king side
-				if self.white_king_rook_has_moved:
-					raise IlegalMoveException('The rook has already moved')
-
-				for i in range(5, 7):
-					print(i)
-					if self.board[7][i] is not None:
-						raise IlegalMoveException('There is at least one piece in between the king and the rook')
-
-					try:
-						self.validate_square_in_check((7, i), piece_at_square=False)
-					except CheckException:
-						raise IlegalMoveException('There are squares in check in the way')
-
-			elif movement == '0-0-0' or movement == 'O-O-O':
-				# queen side
-				if self.white_queen_rook_has_moved:
-					raise IlegalMoveException('The rook has already moved')
-
-				for i in range(1, 4):
-					if self.board[7][i] is not None:
-						raise IlegalMoveException('There is at least one piece in between the king and the rook')
-
-					try:
-						self.validate_square_in_check((7, i), piece_at_square=False)
-					except CheckException:
-						raise IlegalMoveException('There are squares in check in the way')
-
-			else:
-				raise IlegalMoveException('This move is invalid')
+			row = 7
 		else:
-			if self.black_king_has_moved:
-				raise IlegalMoveException('The king has already moved')
+			row = 0
 
-			try:
-				# we already know that the queen is in the default square because of previous validations
-				self.validate_square_in_check((0, 4), piece_at_square=False)
-			except CheckException:
-				raise IlegalMoveException('The king is in check')
+		if (self.turn == WHITE and self.white_king_has_moved) or (self.turn == BLACK and self.black_king_rook_has_moved):
+			raise IlegalMoveException('The king has already moved')
 
-			if movement == '0-0' or movement == 'O-O':
-				# king side
-				if self.black_king_rook_has_moved:
-					raise IlegalMoveException('The rook has already moved')
+		try:
+			# we already know that the queen is in the default square because of previous validations
+			self.validate_square_in_check((row, 4), piece_at_square=True)
+		except CheckException:
+			raise IlegalMoveException('The king is in check')
 
-				for i in range(5, 7):
-					if self.board[0][i] is not None:
-						raise IlegalMoveException('There is at least one piece in between the king and the rook')
+		if movement == '0-0' or movement == 'O-O':
+			# king side
+			if self.board[row][7] is None:
+				raise IlegalMoveException('There is no rook to castle with')
 
-					try:
-						self.validate_square_in_check((0, i), piece_at_square=False)
-					except CheckException:
-						raise IlegalMoveException('There are squares in check in the way')
+			if (self.turn == WHITE and self.white_king_rook_has_moved) or (self.turn == BLACK and self.black_king_rook_has_moved):
+				raise IlegalMoveException('The rook has already moved')
 
-			elif movement == '0-0-0' or movement == 'O-O-O':
-				# queen side
-				if self.black_queen_rook_has_moved:
-					raise IlegalMoveException('The rook has already moved')
+			for i in range(5, 7):
+				if self.board[row][i] is not None:
+					raise IlegalMoveException('There is at least one piece in between the king and the rook')
 
-				for i in range(1, 4):
-					if self.board[0][i] is not None:
-						raise IlegalMoveException('There is at least one piece in between the king and the rook')
+				try:
+					self.validate_square_in_check((row, i), piece_at_square=False)
+				except CheckException:
+					raise IlegalMoveException('There are squares in check in the way')
 
-					try:
-						self.validate_square_in_check((0, i), piece_at_square=False)
-					except CheckException:
-						raise IlegalMoveException('There are squares in check in the way')
+		elif movement == '0-0-0' or movement == 'O-O-O':
+			# queen side
+			if self.board[row][0] is None:
+				raise IlegalMoveException('There is no rook to castle with')
 
-			else:
-				raise IlegalMoveException('This move is invalid')
+			if (self.turn == WHITE and self.white_queen_rook_has_moved) or (self.turn == BLACK and self.black_queen_rook_has_moved):
+				raise IlegalMoveException('The rook has already moved')
+
+			for i in range(1, 4):
+				if self.board[row][i] is not None:
+					raise IlegalMoveException('There is at least one piece in between the king and the rook')
+
+				try:
+					self.validate_square_in_check((row, i), piece_at_square=False)
+				except CheckException:
+					raise IlegalMoveException('There are squares in check in the way:', (row, i))
+
+		else:
+			raise IlegalMoveException('This move is invalid')
 
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                           CHECK VALIDATORS
@@ -860,6 +829,15 @@ class Game:
 
 			if movement == '0-0':
 				# king side
+				if self.turn == WHITE:
+					self.white_king_has_moved = True
+					self.white_king_rook_has_moved = True
+					self.white_king_coord = (row, 6)
+				else:
+					self.black_king_has_moved = True
+					self.black_king_rook_has_moved = True
+					self.black_king_coord = (row, 6)
+
 				self.board[row][6] = self.board[row][4]
 				self.board[row][4] = None
 
@@ -867,6 +845,15 @@ class Game:
 				self.board[row][7] = None
 			elif movement == '0-0-0':
 				# queen side
+				if self.turn == WHITE:
+					self.white_king_has_moved = True
+					self.white_queen_rook_has_moved = True
+					self.white_king_coord = (row, 2)
+				else:
+					self.black_king_has_moved = True
+					self.black_queen_rook_has_moved = True
+					self.black_king_coord = (row, 2)
+
 				self.board[row][2] = self.board[row][4]
 				self.board[row][4] = None
 

@@ -12,5 +12,6 @@ def move_piece(movement):
 game = Game()
 draw_board(game.get_board())
 
+
 while True:
     move_piece(input())
