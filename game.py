@@ -4,7 +4,7 @@ from copy import deepcopy
 # TODO:
 #   implement castle
 
-class SelfCheckException(Exception):
+class CheckException(Exception):
 	pass
 
 class IlegalMoveException(Exception):
@@ -97,9 +97,6 @@ class Game:
 
 	def is_move_capture(self, move):
 		return 'x' in move
-
-	def raise_move_causes_self_check(self):
-		raise SelfCheckException('This move causes yourself a check')
 
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                                 FINDERS
@@ -245,128 +242,6 @@ class Game:
 	# TODO: check out if these functions still work with more than the default amount of pieces, because of pawn
 	# upgrades
 	# -----------------------------------------------------------------------------------------------------------------
-
-	def validate_move_causes_self_check(self, piece_coord, destination):
-		board_copy = deepcopy(self.board)
-
-		king_coord = None
-		king_str = None
-
-		if self.turn == WHITE:
-			king_str = 'wk'
-		else:
-			king_str = 'bk'
-
-		# maybe change this to go reverse in the rows if the king is white for performance
-		for i in range(8):
-			found = False
-			for j in range(8):
-				if self.board[i][j] == king_str:
-					king_coord = (i, j)
-					found = True
-					break
-			if found:
-				break
-
-		# alterations on the board
-		self.board[destination[0]][destination[1]] = self.board[piece_coord[0]][piece_coord[1]]
-		self.board[piece_coord[0]][piece_coord[1]] = None
-
-		# rook part
-		try:
-			e_rook_coords = self.find_rook(not self.turn, king_coord)
-			for c in e_rook_coords:
-				self.validate_rook_move(c, king_coord, True)
-
-			self.raise_move_causes_self_check()
-		except SelfCheckException:
-			self.raise_move_causes_self_check()
-		except:
-			# Couldn't capture
-			None
-
-		# knight part
-		try:
-			e_knight_coords = self.find_knight(not self.turn, king_coord)
-			for c in e_knight_coords:
-				self.validate_knight_move(c, king_coord, True)
-
-			self.raise_move_causes_self_check()
-		except SelfCheckException:
-			self.raise_move_causes_self_check()
-		except:
-			# Couldn't capture
-			pass
-
-		# bishop part
-		try:
-			e_bishop_coord = self.find_bishop(not self.turn, king_coord)
-			self.validate_bishop_move(e_bishop_coord, king_coord, True)
-			self.raise_move_causes_self_check()
-		except SelfCheckException:
-			self.raise_move_causes_self_check()
-		except:
-			# Couldn't capture
-			pass
-
-		# queen part
-		try:
-			e_queen_coord = self.find_queen(not self.turn, king_coord)
-			self.validate_queen_move(e_queen_coord, king_coord, True)
-			self.raise_move_causes_self_check()
-		except SelfCheckException:
-			self.raise_move_causes_self_check()
-		except:
-			# Couldn't capture
-			None
-
-		# king part
-		try:
-			e_king_coord = None
-
-			if self.turn == WHITE:
-				e_king_coord = self.black_king_coord
-			else:
-				e_king_coord = self.white_king_coord
-
-			self.validate_king_move(e_king_coord, king_coord, True)
-			self.raise_move_causes_self_check()
-		except SelfCheckException:
-			self.raise_move_causes_self_check()
-		except:
-			# Couldn't capture
-			None
-
-		# it's needed to validate the pawns manually here because the other functions don't work in this case
-		try:
-			if self.turn == WHITE:
-				king_col = king_coord[1]
-				if king_col - 1 >= 0:
-					possible_pawn = self.board[king_coord[0] - 1][king_col - 1]
-					if possible_pawn is not None and possible_pawn == 'bp':
-						self.raise_move_causes_self_check()
-				if king_col + 1 <= 8:
-					possible_pawn = self.board[king_coord[0] - 1][king_col + 1]
-					if possible_pawn is not None and possible_pawn == 'bp':
-						self.raise_move_causes_self_check()
-			else:
-				king_col = king_coord[1]
-				if king_col - 1 >= 0:
-					possible_pawn = self.board[king_coord[0] + 1][king_col - 1]
-					if possible_pawn is not None and possible_pawn == 'wp':
-						self.raise_move_causes_self_check()
-				if king_col + 1 <= 8:
-					possible_pawn = self.board[king_coord[0] + 1][king_col + 1]
-					if possible_pawn is not None and possible_pawn == 'wp':
-						self.raise_move_causes_self_check()
-		except SelfCheckException:
-			self.raise_move_causes_self_check()
-		except:
-			# Couldn't captur
-			pass
-
-		# going back to normal
-		self.board = deepcopy(board_copy)
 
 	def validate_coord_out_of_board(self, coord):
 		return 0 <= coord[0] <= 7 and 0 <= coord[1] <= 7
@@ -690,6 +565,140 @@ class Game:
 		else:
 			if destination_square is not None:
 				raise IlegalMoveException('There is a piece in the square you want to move to')
+
+	# -----------------------------------------------------------------------------------------------------------------
+	#                                           CHECK VALIDATORS
+	# -----------------------------------------------------------------------------------------------------------------
+	# Validators specific for checks
+	# -----------------------------------------------------------------------------------------------------------------
+
+	def validate_move_causes_self_check(self, piece_coord, destination):
+		board_copy = deepcopy(self.board)
+
+		king_coord = None
+		king_str = None
+
+		if self.turn == WHITE:
+			king_str = 'wk'
+		else:
+			king_str = 'bk'
+
+		# maybe change this to go reverse in the rows if the king is white for performance
+		for i in range(8):
+			found = False
+			for j in range(8):
+				if self.board[i][j] == king_str:
+					king_coord = (i, j)
+					found = True
+					break
+			if found:
+				break
+
+		# alterations on the board
+		self.board[destination[0]][destination[1]] = self.board[piece_coord[0]][piece_coord[1]]
+		self.board[piece_coord[0]][piece_coord[1]] = None
+
+		try:
+			self.validate_square_in_check(king_coord)
+		except CheckException as ce:
+			raise CheckException('This move causes yourself a check')
+
+		# going back to normal
+		self.board = deepcopy(board_copy)
+
+	def validate_square_in_check(self, piece_coord):
+		# rook part
+		try:
+			e_rook_coords = self.find_rook(not self.turn, piece_coord)
+			for c in e_rook_coords:
+				self.validate_rook_move(c, piece_coord, True)
+
+			raise CheckException()
+		except CheckException:
+			raise CheckException()
+		except:
+			# Couldn't capture
+			None
+
+		# knight part
+		try:
+			e_knight_coords = self.find_knight(not self.turn, piece_coord)
+			for c in e_knight_coords:
+				self.validate_knight_move(c, piece_coord, True)
+
+			raise CheckException()
+		except CheckException:
+			raise CheckException()
+		except:
+			# Couldn't capture
+			pass
+
+		# bishop part
+		try:
+			e_bishop_coord = self.find_bishop(not self.turn, piece_coord)
+			self.validate_bishop_move(e_bishop_coord, piece_coord, True)
+			raise CheckException()
+		except CheckException:
+			raise CheckException()
+		except:
+			# Couldn't capture
+			pass
+
+		# queen part
+		try:
+			e_queen_coord = self.find_queen(not self.turn, piece_coord)
+			self.validate_queen_move(e_queen_coord, piece_coord, True)
+			raise CheckException()
+		except CheckException:
+			raise CheckException()
+		except:
+			# Couldn't capture
+			None
+
+		# king part
+		try:
+			e_king_coord = None
+
+			if self.turn == WHITE:
+				e_king_coord = self.black_king_coord
+			else:
+				e_king_coord = self.white_king_coord
+
+			self.validate_king_move(e_king_coord, piece_coord, True)
+			raise CheckException()
+		except CheckException:
+			raise CheckException()
+		except:
+			# Couldn't capture
+			None
+
+		# it's needed to validate the pawns manually here because the other functions don't work in this case
+		try:
+			if self.turn == WHITE:
+				king_col = piece_coord[1]
+				if king_col - 1 >= 0:
+					possible_pawn = self.board[piece_coord[0] - 1][king_col - 1]
+					if possible_pawn is not None and possible_pawn == 'bp':
+						raise CheckException()
+				if king_col + 1 <= 8:
+					possible_pawn = self.board[piece_coord[0] - 1][king_col + 1]
+					if possible_pawn is not None and possible_pawn == 'bp':
+						raise CheckException()
+			else:
+				king_col = piece_coord[1]
+				if king_col - 1 >= 0:
+					possible_pawn = self.board[piece_coord[0] + 1][king_col - 1]
+					if possible_pawn is not None and possible_pawn == 'wp':
+						raise CheckException()
+				if king_col + 1 <= 8:
+					possible_pawn = self.board[piece_coord[0] + 1][king_col + 1]
+					if possible_pawn is not None and possible_pawn == 'wp':
+						raise CheckException()
+		except CheckException:
+			raise CheckException()
+		except:
+			# Couldn't capture
+			pass
 
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                 ALGEBRAIC NOTATION TRANSLATORS AND MOVE HANDLER
