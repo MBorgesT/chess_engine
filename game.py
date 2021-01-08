@@ -10,6 +10,9 @@ class CheckException(Exception):
 class IlegalMoveException(Exception):
 	pass
 
+class InvalidNotationException(Exception):
+	pass
+
 WHITE = True
 BLACK = False
 
@@ -30,14 +33,14 @@ class Game:
 		'''
 
 		self.board = [
-			['br', 'bn', 'bb', 'bq', 'bk', 'bb', None, None],
-			['bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'wp', 'wk'],
-			[None, None, None, None, None, None, None, None],
-			[None, None, None, None, None, None, None, None],
-			[None, None, None, None, None, None, None, None],
-			[None, None, None, None, None, None, None, None],
-			['wp', 'wp', 'wp', 'wp', 'wp', 'wp', None, 'wp'],
-			['wr', 'wn', 'wb', 'wq', None, 'wb', 'wn', 'wr']
+			['br', 'bn', 'bb', 'bq', 'bk', None, None, 'br'],
+			['bp', 'bp', 'bp', 'bp', None, 'bp', 'bp', 'bp'],
+			[None, None, None, None, None, 'bn', None, None],
+			[None, None, 'bb', None, None, None, None, None],
+			[None, None, None, None, 'wp', 'bp', None, None],
+			[None, None, None, 'wb', None, 'wn', None, None],
+			['wp', 'wp', 'wp', 'wp', None, None, 'wp', 'wp'],
+			['wr', 'wn', 'wb', 'wq', 'wk', None, None, 'wr']
 		]
 
 		self.moves = []
@@ -52,8 +55,17 @@ class Game:
 
 		self.en_passant_just_now = False
 
-		self.white_king_coord = None
-		self.black_king_coord = None
+		self.white_king_coord = (7, 4)
+		self.black_king_coord = (0, 4)
+
+		self.white_king_has_moved = False
+		self.black_king_has_moved = False
+
+		self.white_king_rook_has_moved = False
+		self.white_queen_rook_has_moved = False
+
+		self.black_king_rook_has_moved = False
+		self.black_queen_rook_has_moved = False
 
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                              AUXILIARY FUNCTIONS
@@ -566,6 +578,92 @@ class Game:
 			if destination_square is not None:
 				raise IlegalMoveException('There is a piece in the square you want to move to')
 
+		if abs(piece_coord[0] - destination[0]) > 1 or abs(piece_coord[1] - destination[1]) > 1:
+			raise IlegalMoveException('The destination is too far away from the king')
+
+	def validate_castle_move(self, movement):
+		if self.turn == WHITE:
+			if self.white_king_has_moved:
+				raise IlegalMoveException('The king has already moved')
+
+			try:
+				# we already know that the queen is in the default square because of previous validations
+				self.validate_square_in_check((7, 4), piece_at_square=True)
+			except CheckException:
+				raise IlegalMoveException('The king is in check')
+
+			if movement == '0-0' or movement == 'O-O':
+				# king side
+				if self.white_king_rook_has_moved:
+					raise IlegalMoveException('The rook has already moved')
+
+				for i in range(5, 7):
+					print(i)
+					if self.board[7][i] is not None:
+						raise IlegalMoveException('There is at least one piece in between the king and the rook')
+
+					try:
+						self.validate_square_in_check((7, i), piece_at_square=False)
+					except CheckException:
+						raise IlegalMoveException('There are squares in check in the way')
+
+			elif movement == '0-0-0' or movement == 'O-O-O':
+				# queen side
+				if self.white_queen_rook_has_moved:
+					raise IlegalMoveException('The rook has already moved')
+
+				for i in range(1, 4):
+					if self.board[7][i] is not None:
+						raise IlegalMoveException('There is at least one piece in between the king and the rook')
+
+					try:
+						self.validate_square_in_check((7, i), piece_at_square=False)
+					except CheckException:
+						raise IlegalMoveException('There are squares in check in the way')
+
+			else:
+				raise IlegalMoveException('This move is invalid')
+		else:
+			if self.black_king_has_moved:
+				raise IlegalMoveException('The king has already moved')
+
+			try:
+				# we already know that the queen is in the default square because of previous validations
+				self.validate_square_in_check((0, 4), piece_at_square=False)
+			except CheckException:
+				raise IlegalMoveException('The king is in check')
+
+			if movement == '0-0' or movement == 'O-O':
+				# king side
+				if self.black_king_rook_has_moved:
+					raise IlegalMoveException('The rook has already moved')
+
+				for i in range(5, 7):
+					if self.board[0][i] is not None:
+						raise IlegalMoveException('There is at least one piece in between the king and the rook')
+
+					try:
+						self.validate_square_in_check((0, i), piece_at_square=False)
+					except CheckException:
+						raise IlegalMoveException('There are squares in check in the way')
+
+			elif movement == '0-0-0' or movement == 'O-O-O':
+				# queen side
+				if self.black_queen_rook_has_moved:
+					raise IlegalMoveException('The rook has already moved')
+
+				for i in range(1, 4):
+					if self.board[0][i] is not None:
+						raise IlegalMoveException('There is at least one piece in between the king and the rook')
+
+					try:
+						self.validate_square_in_check((0, i), piece_at_square=False)
+					except CheckException:
+						raise IlegalMoveException('There are squares in check in the way')
+
+			else:
+				raise IlegalMoveException('This move is invalid')
+
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                           CHECK VALIDATORS
 	# -----------------------------------------------------------------------------------------------------------------
@@ -599,19 +697,22 @@ class Game:
 		self.board[piece_coord[0]][piece_coord[1]] = None
 
 		try:
-			self.validate_square_in_check(king_coord)
+			self.validate_square_in_check(king_coord, piece_at_square=True)
 		except CheckException as ce:
 			raise CheckException('This move causes yourself a check')
 
 		# going back to normal
 		self.board = deepcopy(board_copy)
 
-	def validate_square_in_check(self, piece_coord):
+	def validate_square_in_check(self, piece_coord, piece_at_square):
+		# the not piece_at_square is a fix because in the castle calculation, it would not consider the path between the rook
+		# and king as in check becuase there was no piece in those squares
+
 		# rook part
 		try:
 			e_rook_coords = self.find_rook(not self.turn, piece_coord)
 			for c in e_rook_coords:
-				self.validate_rook_move(c, piece_coord, True)
+				self.validate_rook_move(c, piece_coord, piece_at_square)
 
 			raise CheckException()
 		except CheckException:
@@ -624,7 +725,7 @@ class Game:
 		try:
 			e_knight_coords = self.find_knight(not self.turn, piece_coord)
 			for c in e_knight_coords:
-				self.validate_knight_move(c, piece_coord, True)
+				self.validate_knight_move(c, piece_coord, piece_at_square)
 
 			raise CheckException()
 		except CheckException:
@@ -636,7 +737,7 @@ class Game:
 		# bishop part
 		try:
 			e_bishop_coord = self.find_bishop(not self.turn, piece_coord)
-			self.validate_bishop_move(e_bishop_coord, piece_coord, True)
+			self.validate_bishop_move(e_bishop_coord, piece_coord, piece_at_square)
 			raise CheckException()
 		except CheckException:
 			raise CheckException()
@@ -647,7 +748,7 @@ class Game:
 		# queen part
 		try:
 			e_queen_coord = self.find_queen(not self.turn, piece_coord)
-			self.validate_queen_move(e_queen_coord, piece_coord, True)
+			self.validate_queen_move(e_queen_coord, piece_coord, piece_at_square)
 			raise CheckException()
 		except CheckException:
 			raise CheckException()
@@ -664,7 +765,7 @@ class Game:
 			else:
 				e_king_coord = self.white_king_coord
 
-			self.validate_king_move(e_king_coord, piece_coord, True)
+			self.validate_king_move(e_king_coord, piece_coord, piece_at_square)
 			raise CheckException()
 		except CheckException:
 			raise CheckException()
@@ -732,31 +833,78 @@ class Game:
 				# king
 				destination, piece_coord = self.handle_king_move(movement, add)
 			else:
-				raise IlegalMoveException('This command is invalid')
+				raise InvalidNotationException('This command is invalid')
 		elif movement[0] == 'x' or 97 <= ord(movement[0]) <= 104:
 			# pawn
 			destination, piece_coord = self.handle_pawn_move(movement)
+		elif movement[0] == '0':
+			# castle
+			self.handle_castle(movement)
 		else:
-			raise IlegalMoveException('This command is invalid')
+			raise InvalidNotationException('This command is invalid')
 
-		self.validate_move_causes_self_check(piece_coord, destination)
-
+		'''
 		print('move:', movement)
 		print('dest:', destination)
 		print('orgn:', piece_coord, '\n')
-
-		# tracking the kings moves
-		if movement[0] == 'K':
-			if self.turn == WHITE:
-				self.white_king_coord = destination
-			else:
-				self.black_king_coord = destination
-
-		self.handle_possible_pawn_upgrade(movement, piece_coord, destination)
+		'''
 
 		# alterations on the board
-		self.board[destination[0]][destination[1]] = self.board[piece_coord[0]][piece_coord[1]]
-		self.board[piece_coord[0]][piece_coord[1]] = None
+		if movement[0] == '0':
+			# castle
+			row = None
+			if self.turn == WHITE:
+				row = 7
+			else:
+				row = 0
+
+			if movement == '0-0':
+				# king side
+				self.board[row][6] = self.board[row][4]
+				self.board[row][4] = None
+
+				self.board[row][5] = self.board[row][7]
+				self.board[row][7] = None
+			elif movement == '0-0-0':
+				# queen side
+				self.board[row][2] = self.board[row][4]
+				self.board[row][4] = None
+
+				self.board[row][3] = self.board[row][0]
+				self.board[row][0] = None
+			else:
+				raise Exception('Something unexpected went wrong. This should have been handled before')
+
+		else:
+			self.validate_move_causes_self_check(piece_coord, destination)
+
+			# tracking the kings moves
+			if movement[0] == 'K':
+				if self.turn == WHITE:
+					self.white_king_coord = destination
+					self.white_king_has_moved = True
+				else:
+					self.black_king_coord = destination
+					self.black_king_has_moved = True
+			elif movement[0] == 'R':
+				# for castle purposes
+				# a more elegant way of doing this is changing every element of the board for classes
+				# it would take a lot of effort, so I'll try this way before
+				if self.turn == WHITE and piece_coord[0] == 7:
+					if piece_coord[1] == 0:
+						self.white_queen_rook_has_moved = True
+					elif piece_coord[1] == 7:
+						self.white_king_rook_has_moved = True
+				elif self.turn == BLACK and piece_coord[0] == 0:
+					if piece_coord[1] == 0:
+						self.black_queen_rook_has_moved = True
+					elif piece_coord[1] == 7:
+						self.black_king_rook_has_moved = True
+
+			self.handle_possible_pawn_upgrade(movement, piece_coord, destination)
+
+			self.board[destination[0]][destination[1]] = self.board[piece_coord[0]][piece_coord[1]]
+			self.board[piece_coord[0]][piece_coord[1]] = None
 
 		# white did an en passant move
 		if self.en_passant_flag_white:
@@ -776,7 +924,7 @@ class Game:
 
 		self.moves.append(movement)
 
-		#self.turn = not self.turn
+		self.turn = not self.turn
 
 		return [piece_coord, destination]
 
@@ -942,6 +1090,9 @@ class Game:
 			                'solve this.')
 
 		return destination, piece_coord
+
+	def handle_castle(self, movement):
+		self.validate_castle_move(movement)
 
 	def handle_possible_pawn_upgrade(self, movement, piece_coord, destination):
 		if '=' in movement:
