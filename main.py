@@ -12,7 +12,7 @@ def move_piece(movement):
 game = Game()
 draw_board(game.get_board())
 
-print(game.queen_move_stops_check(7, 6))
+print(game.is_checkmate())
 
 '''
 while True:

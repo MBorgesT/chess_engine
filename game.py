@@ -34,14 +34,14 @@ class Game:
 		'''
 
 		self.board = [
-			['br', None, None, None, 'bk', None, None, 'br'],
+			['br', None, None, None, 'bk', None, None, None],
 			['bp', 'bp', 'bp', None, 'bp', 'bp', 'bp', 'bp'],
 			[None, None, None, None, None, None, None, None],
+			[None, None, None, None, None, None, None, 'bb'],
 			[None, None, None, None, None, None, None, None],
 			[None, None, None, None, None, None, None, None],
-			[None, None, None, None, None, 'wb', 'bb', None],
-			['wp', 'wp', 'wp', 'wp', 'wp', None, 'wp', 'wp'],
-			[None, None, None, 'wn', 'wk', None, 'wq', 'wr']
+			['wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp'],
+			[None, None, 'wb', None, 'wk', None, 'br', None]
 		]
 
 		self.moves = []
@@ -55,9 +55,6 @@ class Game:
 		self.en_passant_flag_black = False
 
 		self.en_passant_just_now = False
-
-		self.white_king_coord = (7, 4)
-		self.black_king_coord = (0, 4)
 
 		self.white_king_has_moved = False
 		self.black_king_has_moved = False
@@ -110,6 +107,21 @@ class Game:
 
 	def is_move_capture(self, move):
 		return 'x' in move
+
+	def get_king_coord(self, color):
+		king_str = None
+		if color == WHITE:
+			king_str = 'wk'
+		else:
+			king_str = 'bk'
+
+		for i in range(8):
+			for j in range(8):
+				cell = self.board[i][j]
+				if cell is not None and cell == king_str:
+					return (i, j)
+
+		raise Exception('King not found')
 
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                                 FINDERS
@@ -316,6 +328,9 @@ class Game:
 		# destination and piece_coord: [row, column]
 		piece = self.board[piece_coord[0]][piece_coord[1]]
 
+		if not self.validate_coord_out_of_board(destination):
+			raise InvalidNotationException('Destination out of boundries')
+
 		if piece is None:
 			raise IlegalMoveException('There is no piece in the origin square')
 
@@ -324,7 +339,6 @@ class Game:
 
 		# check if different row
 		if piece_coord[1] != destination[1]:
-
 			# check if column distance is ok
 			if abs(piece_coord[1] - destination[1]) != 1:
 				raise IlegalMoveException('Column distance is invalid')
@@ -355,9 +369,7 @@ class Game:
 					raise IlegalMoveException('Wrong row distance')
 			else:
 				raise IlegalMoveException('Wrong color passed as parameter:', piece)
-
 		else:
-
 			raise IlegalMoveException('This is not a capture move')
 
 	def validate_rook_move(self, piece_coord, destination, capture):
@@ -643,7 +655,6 @@ class Game:
 	def validate_move_causes_self_check(self, piece_coord, destination):
 		board_copy = deepcopy(self.board)
 
-		king_coord = None
 		king_str = None
 
 		if self.turn == WHITE:
@@ -651,23 +662,12 @@ class Game:
 		else:
 			king_str = 'bk'
 
-		# maybe change this to go reverse in the rows if the king is white for performance
-		for i in range(8):
-			found = False
-			for j in range(8):
-				if self.board[i][j] == king_str:
-					king_coord = (i, j)
-					found = True
-					break
-			if found:
-				break
-
 		# alterations on the board
 		self.board[destination[0]][destination[1]] = self.board[piece_coord[0]][piece_coord[1]]
 		self.board[piece_coord[0]][piece_coord[1]] = None
 
 		try:
-			self.validate_square_in_check(king_coord, piece_at_square=True)
+			self.validate_square_in_check(self.get_king_coord(self.turn), piece_at_square=True)
 		except CheckException as ce:
 			raise CheckException('This move causes yourself a check')
 		finally:
@@ -731,9 +731,9 @@ class Game:
 			e_king_coord = None
 
 			if self.turn == WHITE:
-				e_king_coord = self.black_king_coord
+				e_king_coord = self.get_king_coord(BLACK)
 			else:
-				e_king_coord = self.white_king_coord
+				e_king_coord = self.get_king_coord(WHITE)
 
 			self.validate_king_move(e_king_coord, piece_coord, piece_at_square)
 			raise CheckException()
@@ -772,13 +772,11 @@ class Game:
 			pass
 
 	def is_checkmate(self):
-		king_coord = None
+		king_coord = self.get_king_coord(self.turn)
 		color_char = None
 		if self.turn == WHITE:
-			king_coord = self.white_king_coord
 			color_char = 'w'
 		else:
-			king_coord = self.black_king_coord
 			color_char = 'b'
 
 		try:
@@ -791,12 +789,26 @@ class Game:
 			for j in range(8):
 				cell = self.board[i][j]
 				if cell is not None and cell[0] == color_char:
-					if cell[1] == 'r':
+					if cell[1] == 'p':
+						if self.pawn_move_stops_check(i, j):
+							return False
+					elif cell[1] == 'r':
 						if self.rook_move_stops_check(i, j):
 							return False
 					elif cell[1] == 'n':
 						if self.knight_move_stops_check(i, j):
 							return False
+					elif cell[1] == 'b':
+						if self.bishop_move_stops_check(i, j):
+							return False
+					elif cell[1] == 'q':
+						if self.queen_move_stops_check(i, j):
+							return False
+					elif cell[1] == 'k':
+						if self.king_move_stops_check(i, j):
+							return False
+
+		return True
 
 	def rook_move_stops_check(self, i, j):
 		# going throw the rows
@@ -853,7 +865,9 @@ class Game:
 					self.validate_knight_move((i, j), (row, col), self.board[row][col] is not None)
 					self.validate_move_causes_self_check((i, j), (row, col))
 					return True
-				except IlegalMoveException or CheckException:
+				except CheckException:
+					pass
+				except IlegalMoveException:
 					pass
 
 			row = i + 2 * int(cos(ang)) - int(sin(ang))
@@ -863,7 +877,9 @@ class Game:
 					self.validate_knight_move((i, j), (row, col), self.board[row][col] is not None)
 					self.validate_move_causes_self_check((i, j), (row, col))
 					return True
-				except IlegalMoveException or CheckException:
+				except CheckException:
+					pass
+				except IlegalMoveException:
 					pass
 
 			ang += pi / 2
@@ -968,6 +984,64 @@ class Game:
 
 		return False
 
+	def pawn_move_stops_check(self, i, j):
+		spawn_row = None
+		direction = None
+		if self.turn == WHITE:
+			spawn_row = 6
+			direction = -1
+		else:
+			spawn_row = 1
+			direction = 1
+
+		# check for one step moves
+		try:
+			destination = (i+direction, j)
+			self.validate_pawn_move((i, j), destination)
+			self.validate_move_causes_self_check((i, j), destination)
+			return True
+		except CheckException:
+			pass
+		except IlegalMoveException:
+			pass
+
+		# check for two step moves
+		try:
+			destination = (i + (2 * direction), j)
+			self.validate_pawn_move((i, j), destination)
+			self.validate_move_causes_self_check((i, j), destination)
+			return True
+		except CheckException:
+			pass
+		except IlegalMoveException:
+			pass
+
+		try:
+			destination = (i + direction, j - 1)
+			self.validate_capture_with_pawn((i, j), destination)
+			self.validate_move_causes_self_check((i, j), destination)
+			return True
+		except CheckException:
+			pass
+		except IlegalMoveException:
+			pass
+		except InvalidNotationException:
+			pass
+
+		try:
+			destination = (i + direction, j + 1)
+			self.validate_capture_with_pawn((i, j), destination)
+			self.validate_move_causes_self_check((i, j), destination)
+			return True
+		except CheckException:
+			pass
+		except IlegalMoveException:
+			pass
+		except InvalidNotationException:
+			pass
+
+		return False
+
 	# -----------------------------------------------------------------------------------------------------------------
 	#                                ALGEBRAIC NOTATION TRANSLATORS AND MOVE HANDLERS
 	# -----------------------------------------------------------------------------------------------------------------
@@ -1030,11 +1104,9 @@ class Game:
 				if self.turn == WHITE:
 					self.white_king_has_moved = True
 					self.white_king_rook_has_moved = True
-					self.white_king_coord = (row, 6)
 				else:
 					self.black_king_has_moved = True
 					self.black_king_rook_has_moved = True
-					self.black_king_coord = (row, 6)
 
 				self.board[row][6] = self.board[row][4]
 				self.board[row][4] = None
@@ -1046,11 +1118,9 @@ class Game:
 				if self.turn == WHITE:
 					self.white_king_has_moved = True
 					self.white_queen_rook_has_moved = True
-					self.white_king_coord = (row, 2)
 				else:
 					self.black_king_has_moved = True
 					self.black_queen_rook_has_moved = True
-					self.black_king_coord = (row, 2)
 
 				self.board[row][2] = self.board[row][4]
 				self.board[row][4] = None
@@ -1066,10 +1136,8 @@ class Game:
 			# tracking the kings moves
 			if movement[0] == 'K':
 				if self.turn == WHITE:
-					self.white_king_coord = destination
 					self.white_king_has_moved = True
 				else:
-					self.black_king_coord = destination
 					self.black_king_has_moved = True
 			elif movement[0] == 'R':
 				# for castle purposes
@@ -1110,6 +1178,9 @@ class Game:
 		self.moves.append(movement)
 
 		self.turn = not self.turn
+
+		if self.is_checkmate():
+			raise Exception('Checkmate')
 
 		return [piece_coord, destination]
 
