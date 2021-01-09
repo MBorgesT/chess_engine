@@ -2,8 +2,7 @@ from math import sin, cos, pi
 from copy import deepcopy
 
 # TODO:
-#   check for checkmate
-#   stalement
+#   resolve problems where ambiguity is resolved by only one peace being able to move to certain square
 
 class CheckException(Exception):
 	pass
@@ -20,7 +19,7 @@ BLACK = False
 class Game:
 
 	def __init__(self):
-		'''
+
 		self.board = [
 			['br', 'bn', 'bb', 'bq', 'bk', 'bb', 'bn', 'br'],
 			['bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp'],
@@ -30,18 +29,6 @@ class Game:
 			[None, None, None, None, None, None, None, None],
 			['wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp'],
 			['wr', 'wn', 'wb', 'wq', 'wk', 'wb', 'wn', 'wr']
-		]
-		'''
-
-		self.board = [
-			['br', None, None, None, 'bk', None, None, None],
-			['bp', 'bp', 'bp', None, 'bp', 'bp', 'bp', 'bp'],
-			[None, None, None, None, None, None, None, None],
-			[None, None, None, None, None, None, None, 'bb'],
-			[None, None, None, None, None, None, None, None],
-			[None, None, None, None, None, None, None, None],
-			['wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp'],
-			[None, None, 'wb', None, 'wk', None, 'br', None]
 		]
 
 		self.moves = []
@@ -668,7 +655,7 @@ class Game:
 
 		try:
 			self.validate_square_in_check(self.get_king_coord(self.turn), piece_at_square=True)
-		except CheckException as ce:
+		except CheckException:
 			raise CheckException('This move causes yourself a check')
 		finally:
 			# going back to normal
@@ -1052,7 +1039,10 @@ class Game:
 		destination = None
 		piece_coord = None
 
-		if movement[0].isupper():
+		if movement[0] == '0' or movement[0] == 'O':
+			# castle
+			self.handle_castle(movement)
+		elif movement[0].isupper():
 			# if the movement is of capture, it's just easier if we shift the reading one character to the right
 			add = 0
 			if self.is_move_capture(movement):
@@ -1074,13 +1064,11 @@ class Game:
 				# king
 				destination, piece_coord = self.handle_king_move(movement, add)
 			else:
-				raise InvalidNotationException('This command is invalid')
+				raise InvalidNotationException('This command is invalid:', movement)
 		elif movement[0] == 'x' or 97 <= ord(movement[0]) <= 104:
 			# pawn
 			destination, piece_coord = self.handle_pawn_move(movement)
-		elif movement[0] == '0':
-			# castle
-			self.handle_castle(movement)
+
 		else:
 			raise InvalidNotationException('This command is invalid')
 
@@ -1091,7 +1079,7 @@ class Game:
 		'''
 
 		# alterations on the board
-		if movement[0] == '0':
+		if movement[0] == '0' or movement[0] == 'O':
 			# castle
 			row = None
 			if self.turn == WHITE:
@@ -1099,7 +1087,7 @@ class Game:
 			else:
 				row = 0
 
-			if movement == '0-0':
+			if movement == '0-0' or movement == 'O-O':
 				# king side
 				if self.turn == WHITE:
 					self.white_king_has_moved = True
@@ -1113,7 +1101,7 @@ class Game:
 
 				self.board[row][5] = self.board[row][7]
 				self.board[row][7] = None
-			elif movement == '0-0-0':
+			elif movement == '0-0-0' or movement == 'O-O-O':
 				# queen side
 				if self.turn == WHITE:
 					self.white_king_has_moved = True
@@ -1153,8 +1141,8 @@ class Game:
 						self.black_queen_rook_has_moved = True
 					elif piece_coord[1] == 7:
 						self.black_king_rook_has_moved = True
-
-			self.handle_possible_pawn_upgrade(movement, piece_coord, destination)
+			elif movement[0].islower():
+				self.handle_possible_pawn_upgrade(movement, piece_coord, destination)
 
 			self.board[destination[0]][destination[1]] = self.board[piece_coord[0]][piece_coord[1]]
 			self.board[piece_coord[0]][piece_coord[1]] = None
@@ -1211,30 +1199,45 @@ class Game:
 		return destination, piece_coord
 
 	def handle_rook_move(self, movement, add):
+		piece_coord = None
+		destination = None
 		if self.is_normal_movement(movement, add):
 			# not in the same column or row
 			destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
 			coords = self.find_rook(self.turn, destination)
 
 			if len(coords) == 1:
+				self.validate_rook_move(coords[0], destination, self.is_move_capture(movement))
 				piece_coord = coords[0]
 			elif len(coords) == 2:
-				raise IlegalMoveException('Please specify which rook you want to move')
+				flag = False
+				try:
+					self.validate_rook_move(coords[0], destination, self.is_move_capture(movement))
+					piece_coord = coords[0]
+					flag = True
+				except:
+					pass
+
+				if not flag:
+					# it needs to be this one if not the one before
+					self.validate_rook_move(coords[1], destination, self.is_move_capture(movement))
+					piece_coord = coords[1]
 			else:
 				raise Exception('Something went wrong. This should not have been called')
-		elif self.is_same_row_movement(movement, add):
-			# in the same row
-			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
-			piece_coord = (self.get_row(movement[3 + add]), self.get_column(movement[1]))
-
-		elif self.is_same_col_movement(movement, add):
-			# in the same column
-			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
-			piece_coord = (self.get_row(movement[1]), self.get_column(movement[2 + add]))
 		else:
-			raise IlegalMoveException('Invalid movement')
+			if self.is_same_row_movement(movement, add):
+				# in the same row
+				destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
+				piece_coord = (self.get_row(movement[3 + add]), self.get_column(movement[1]))
 
-		self.validate_rook_move(piece_coord, destination, self.is_move_capture(movement))
+			elif self.is_same_col_movement(movement, add):
+				# in the same column
+				destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
+				piece_coord = (self.get_row(movement[1]), self.get_column(movement[2 + add]))
+			else:
+				raise IlegalMoveException('Invalid movement')
+
+			self.validate_rook_move(piece_coord, destination, self.is_move_capture(movement))
 
 		if destination is None or piece_coord is None:
 			raise Exception('Something went wrong. This should not happen in any case because if this conditional is '
