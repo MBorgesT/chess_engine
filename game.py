@@ -3,6 +3,7 @@ from copy import deepcopy
 
 # TODO:
 #   check for checkmate
+#   stalement
 
 class CheckException(Exception):
 	pass
@@ -36,11 +37,11 @@ class Game:
 			['br', None, None, None, 'bk', None, None, 'br'],
 			['bp', 'bp', 'bp', None, 'bp', 'bp', 'bp', 'bp'],
 			[None, None, None, None, None, None, None, None],
-			[None, None, None, None, None, 'wb', None, None],
 			[None, None, None, None, None, None, None, None],
 			[None, None, None, None, None, None, None, None],
-			['wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp'],
-			[None, None, None, None, 'wk', None, 'wn', 'wr']
+			[None, None, None, None, None, 'wb', 'bb', None],
+			['wp', 'wp', 'wp', 'wp', 'wp', None, 'wp', 'wp'],
+			[None, None, None, 'wn', 'wk', None, 'wq', 'wr']
 		]
 
 		self.moves = []
@@ -634,9 +635,9 @@ class Game:
 			raise IlegalMoveException('This move is invalid')
 
 	# -----------------------------------------------------------------------------------------------------------------
-	#                                           CHECK VALIDATORS
+	#                                      CHECK AND ENDGAME VALIDATORS
 	# -----------------------------------------------------------------------------------------------------------------
-	# Validators specific for checks
+	#
 	# -----------------------------------------------------------------------------------------------------------------
 
 	def validate_move_causes_self_check(self, piece_coord, destination):
@@ -669,9 +670,9 @@ class Game:
 			self.validate_square_in_check(king_coord, piece_at_square=True)
 		except CheckException as ce:
 			raise CheckException('This move causes yourself a check')
-
-		# going back to normal
-		self.board = deepcopy(board_copy)
+		finally:
+			# going back to normal
+			self.board = deepcopy(board_copy)
 
 	def validate_square_in_check(self, piece_coord, piece_at_square):
 		# the not piece_at_square is a fix because in the castle calculation, it would not consider the path between the rook
@@ -770,8 +771,205 @@ class Game:
 			# Couldn't capture
 			pass
 
+	def is_checkmate(self):
+		king_coord = None
+		color_char = None
+		if self.turn == WHITE:
+			king_coord = self.white_king_coord
+			color_char = 'w'
+		else:
+			king_coord = self.black_king_coord
+			color_char = 'b'
+
+		try:
+			self.validate_square_in_check(king_coord, piece_at_square=True)
+			return False
+		except CheckException:
+			pass
+
+		for i in range(8):
+			for j in range(8):
+				cell = self.board[i][j]
+				if cell is not None and cell[0] == color_char:
+					if cell[1] == 'r':
+						if self.rook_move_stops_check(i, j):
+							return False
+					elif cell[1] == 'n':
+						if self.knight_move_stops_check(i, j):
+							return False
+
+	def rook_move_stops_check(self, i, j):
+		# going throw the rows
+		for row in range(i + 1, 8):
+			try:
+				self.validate_rook_move((i, j), (row, j), self.board[row][j] is not None)
+				self.validate_move_causes_self_check((i, j), (row, j))
+				return True
+			except IlegalMoveException:
+				break
+			except CheckException:
+				pass
+
+		for row in range(i - 1, -1, -1):
+			try:
+				self.validate_rook_move((i, j), (row, j), self.board[row][j] is not None)
+				self.validate_move_causes_self_check((i, j), (row, j))
+				return True
+			except IlegalMoveException:
+				break
+			except CheckException:
+				pass
+
+		# going throw the columns
+		for col in range(j + 1, 8):
+			try:
+				self.validate_rook_move((i, j), (i, col), self.board[i][col] is not None)
+				self.validate_move_causes_self_check((i, j), (i, col))
+				return True
+			except IlegalMoveException:
+				break
+			except CheckException:
+				pass
+
+		for col in range(j - 1, -1, -1):
+			try:
+				self.validate_rook_move((i, j), (i, col), self.board[i][col] is not None)
+				self.validate_move_causes_self_check((i, j), (i, col))
+				return True
+			except IlegalMoveException:
+				break
+			except CheckException:
+				pass
+
+		return False
+
+	def knight_move_stops_check(self, i, j):
+		ang = 0
+		while ang < 2 * pi:
+			row = i + 2 * int(cos(ang)) + int(sin(ang))
+			col = j + 2 * int(sin(ang)) + int(cos(ang))
+			if self.validate_coord_out_of_board((row, col)):
+				try:
+					self.validate_knight_move((i, j), (row, col), self.board[row][col] is not None)
+					self.validate_move_causes_self_check((i, j), (row, col))
+					return True
+				except IlegalMoveException or CheckException:
+					pass
+
+			row = i + 2 * int(cos(ang)) - int(sin(ang))
+			col = j + 2 * int(sin(ang)) - int(cos(ang))
+			if self.validate_coord_out_of_board((row, col)):
+				try:
+					self.validate_knight_move((i, j), (row, col), self.board[row][col] is not None)
+					self.validate_move_causes_self_check((i, j), (row, col))
+					return True
+				except IlegalMoveException or CheckException:
+					pass
+
+			ang += pi / 2
+
+	def bishop_move_stops_check(self, i, j):
+		for y in range(-1, 2, 2):
+			for x in range(-1, 2, 2):
+				pos = [i + y, j + x]
+				while self.validate_coord_out_of_board(pos):
+					try:
+						self.validate_bishop_move((i, j), tuple(pos), self.board[pos[0]][pos[1]] is not None)
+						self.validate_move_causes_self_check((i, j), tuple(pos))
+						return True
+					except IlegalMoveException:
+						break
+					except CheckException:
+						pass
+
+					pos[0] += y
+					pos[1] += x
+
+		return False
+
+	def queen_move_stops_check(self, i, j):
+		# rook part
+		# going throw the rows
+		for row in range(i + 1, 8):
+			try:
+				self.validate_queen_move((i, j), (row, j), self.board[row][j] is not None)
+				self.validate_move_causes_self_check((i, j), (row, j))
+				return True
+			except IlegalMoveException:
+				break
+			except CheckException:
+				pass
+
+		for row in range(i - 1, -1, -1):
+			try:
+				self.validate_queen_move((i, j), (row, j), self.board[row][j] is not None)
+				self.validate_move_causes_self_check((i, j), (row, j))
+				return True
+			except IlegalMoveException:
+				break
+			except CheckException:
+				pass
+
+		# going throw the columns
+		for col in range(j + 1, 8):
+			try:
+				self.validate_queen_move((i, j), (i, col), self.board[i][col] is not None)
+				self.validate_move_causes_self_check((i, j), (i, col))
+				return True
+			except IlegalMoveException:
+				break
+			except CheckException:
+				pass
+
+		for col in range(j - 1, -1, -1):
+			try:
+				self.validate_queen_move((i, j), (i, col), self.board[i][col] is not None)
+				self.validate_move_causes_self_check((i, j), (i, col))
+				return True
+			except IlegalMoveException:
+				break
+			except CheckException:
+				pass
+
+		# bishop part
+		for y in range(-1, 2, 2):
+			for x in range(-1, 2, 2):
+				pos = [i + y, j + x]
+				while self.validate_coord_out_of_board(pos):
+					self.validate_queen_move((i, j), tuple(pos), self.board[pos[0]][pos[1]] is not None)
+					try:
+						self.validate_queen_move((i, j), tuple(pos), self.board[pos[0]][pos[1]] is not None)
+						self.validate_move_causes_self_check((i, j), tuple(pos))
+						return True
+					except IlegalMoveException as e:
+						print(e)
+						break
+					except CheckException:
+						pass
+
+					pos[0] += y
+					pos[1] += x
+
+		return False
+
+	def king_move_stops_check(self, i, j):
+		for y in range(-1, 2):
+			for x in range(-1, 2):
+				des = (i + y, j + x)
+				if (y != 0 or x != 0) and self.validate_coord_out_of_board(des):
+					try:
+						self.validate_king_move((i, j), des, self.board[des[0]][des[1]] is not None)
+						self.validate_move_causes_self_check((i, j), des)
+						return True
+					except IlegalMoveException:
+						break
+					except CheckException:
+						pass
+
+		return False
+
 	# -----------------------------------------------------------------------------------------------------------------
-	#                                 ALGEBRAIC NOTATION TRANSLATORS AND MOVE HANDLER
+	#                                ALGEBRAIC NOTATION TRANSLATORS AND MOVE HANDLERS
 	# -----------------------------------------------------------------------------------------------------------------
 	# These functions are designed to translate the algebraic notation into data to be used on the other functions.
 	# -----------------------------------------------------------------------------------------------------------------
