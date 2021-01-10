@@ -1226,6 +1226,7 @@ class Game:
 				self.validate_rook_move(coords[0], destination, self.is_move_capture(movement))
 				piece_coord = coords[0]
 			elif len(coords) == 2:
+				# one of the moves is invalid
 				flag = False
 				try:
 					self.validate_rook_move(coords[0], destination, self.is_move_capture(movement))
@@ -1289,11 +1290,25 @@ class Game:
 			destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
 			coords = self.find_knight(color=self.turn, destination=destination)
 
+			# checking for 0 is already done in the find function
 			if len(coords) == 1:
 				piece_coord = coords[0]
+			elif len(coords) == 2:
+				# one of the moves is invalid
+				flag = False
+				try:
+					self.validate_knight_move(coords[0], destination, self.is_move_capture(movement))
+					piece_coord = coords[0]
+					flag = True
+				except:
+					pass
+
+				if not flag:
+					# it needs to be this one if not the one before
+					self.validate_knight_move(coords[1], destination, self.is_move_capture(movement))
+					piece_coord = coords[1]
 			else:
-				# checking for 0 is already done in the find_knight function
-				raise IlegalMoveException('Please inform which one of the knights you want to move')
+				raise Exception('Something went wrong. This should not have been called')
 		elif self.is_known_col_move(movement, add):
 			# in the same row
 			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
@@ -1400,6 +1415,9 @@ class Game:
 				raise IlegalMoveException('You can only upgrade the pawn in the last row')
 
 			new_char = movement[-1]
+			if new_char == '+':
+				new_char = movement[-2]
+
 			if new_char in 'QBNR':
 				piece = self.board[piece_coord[0]][piece_coord[1]]
 				piece = piece[0] + new_char.lower()

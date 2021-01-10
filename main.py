@@ -7,8 +7,8 @@ def move_piece(movement):
     res = game.move_piece(movement)
     end = time()
     print('time:', end - start)
-    draw_board(game.get_board(), origin_square=res[0], destination_square=res[1])
-    input()
+    #draw_board(game.get_board(), origin_square=res[0], destination_square=res[1])
+    #input()
 
 file = open('games.txt', 'r')
 games = file.readlines()
