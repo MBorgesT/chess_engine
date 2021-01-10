@@ -2,7 +2,7 @@ from math import sin, cos, pi
 from copy import deepcopy
 
 # TODO:
-#   resolve problems where ambiguity is resolved by only one peace being able to move to certain square
+#   disambiguity when one piece can't move because of check pin
 
 class CheckException(Exception):
 	pass
@@ -87,10 +87,10 @@ class Game:
 		return movement[1 + add].isalpha() and movement[2 + add].isdigit()
 
 	def is_known_row_move(self, movement, add):
-		return movement[1].isalpha() and movement[2 + add].isalpha()
+		return movement[1].isdigit() and movement[2 + add].isalpha()
 
 	def is_known_col_move(self, movement, add):
-		return movement[1].isdigit() and movement[2 + add].isalpha()
+		return movement[1].isalpha() and movement[2 + add].isalpha()
 
 	def is_move_capture(self, move):
 		return 'x' in move
@@ -147,16 +147,28 @@ class Game:
 		if known_row is not None and known_col is not None:
 			raise Exception('This should not happen. Take a look at the other functions for errors')
 
-		# going throw columns
-		if known_col is None:
+		if known_row is not None:
+			for col in range(8):
+				piece = self.board[known_row][col]
+				if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == color:
+					found = True
+					rook_coords.append((known_row, col))
+
+		elif known_col is not None:
+			for row in range(8):
+				piece = self.board[row][known_col]
+				if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == color:
+					found = True
+					rook_coords.append((row, known_col))
+		else:
+			# going throw columns
 			for col in range(8):
 				piece = self.board[destination[0]][col]
 				if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == color:
 					found = True
 					rook_coords.append((destination[0], col))
 
-		# going throw rows
-		if known_row is None:
+			# going throw rows
 			for row in range(8):
 				piece = self.board[row][destination[1]]
 				if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == color:
@@ -626,7 +638,7 @@ class Game:
 			if (self.turn == WHITE and self.white_queen_rook_has_moved) or (self.turn == BLACK and self.black_queen_rook_has_moved):
 				raise IlegalMoveException('The rook has already moved')
 
-			for i in range(1, 4):
+			for i in range(2, 4):
 				if self.board[row][i] is not None:
 					raise IlegalMoveException('There is at least one piece in between the king and the rook')
 
@@ -944,13 +956,11 @@ class Game:
 			for x in range(-1, 2, 2):
 				pos = [i + y, j + x]
 				while self.validate_coord_out_of_board(pos):
-					self.validate_queen_move((i, j), tuple(pos), self.board[pos[0]][pos[1]] is not None)
 					try:
 						self.validate_queen_move((i, j), tuple(pos), self.board[pos[0]][pos[1]] is not None)
 						self.validate_move_causes_self_check((i, j), tuple(pos))
 						return True
-					except IlegalMoveException as e:
-						print(e)
+					except IlegalMoveException:
 						break
 					except CheckException:
 						pass
@@ -970,7 +980,7 @@ class Game:
 						self.validate_move_causes_self_check((i, j), des)
 						return True
 					except IlegalMoveException:
-						break
+						pass
 					except CheckException:
 						pass
 
@@ -1232,20 +1242,22 @@ class Game:
 				raise Exception('Something went wrong. This should not have been called')
 		else:
 			if self.is_known_row_move(movement, add):
-				# in the same row
+				# knows the row
 				destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
-				coords = self.find_rook(self.turn, destination, known_row=self.get_row(movement[3 + add]))
+				coords = self.find_rook(self.turn, destination, known_row=self.get_row(movement[1]))
 
 			elif self.is_known_col_move(movement, add):
-				# in the same column
+				# knows the col
 				destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
-				coords = self.find_rook(self.turn, destination, known_col=self.get_column(movement[1 + add]))
+				coords = self.find_rook(self.turn, destination, known_col=self.get_column(movement[1]))
 			else:
 				raise IlegalMoveException('Invalid movement')
 
 			if len(coords) == 1:
 				piece_coord = coords[0]
 			elif len(coords) == 2:
+				raise InvalidNotationException('This movement should not find two rooks')
+				'''
 				if coords[0][0] == coords[1][0]:
 					known_col = self.get_column(movement[1 + add])
 					if coords[0][1] == known_col:
@@ -1258,6 +1270,7 @@ class Game:
 						piece_coord = coords[0]
 					else:
 						piece_coord = coords[1]
+				'''
 			else:
 				raise Exception('Something went wrong. This should not have been called')
 
@@ -1281,7 +1294,7 @@ class Game:
 			else:
 				# checking for 0 is already done in the find_knight function
 				raise IlegalMoveException('Please inform which one of the knights you want to move')
-		elif self.is_known_row_move(movement, add):
+		elif self.is_known_col_move(movement, add):
 			# in the same row
 			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
 			col = self.get_column(movement[1])
@@ -1298,7 +1311,7 @@ class Game:
 					raise IlegalMoveException("Couldn't find a knight with the specified command")
 			else:
 				raise IlegalMoveException('The number of knights found is more than two:', len(coords))
-		elif self.is_known_col_move(movement, add):
+		elif self.is_known_row_move(movement, add):
 			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
 			row = self.get_row(movement[1])
 			coords = self.find_knight(color=self.turn, destination=destination)
