@@ -1087,12 +1087,6 @@ class Game:
 		else:
 			raise InvalidNotationException('This command is invalid')
 
-		'''
-		print('move:', movement)
-		print('dest:', destination)
-		print('orgn:', piece_coord, '\n')
-		'''
-
 		# alterations on the board
 		if movement[0] == '0' or movement[0] == 'O':
 			# castle
@@ -1182,10 +1176,21 @@ class Game:
 
 		self.turn = not self.turn
 
+		result = None
 		if self.is_checkmate():
-			raise Exception('Checkmate')
+			if self.turn == WHITE:
+				result = '0-1'
+			else:
+				result = '1-0'
 
-		return [piece_coord, destination]
+		king_coord = self.get_king_coord(self.turn)
+		check_coord = None
+		try:
+			self.validate_square_in_check(king_coord, True)
+		except CheckException:
+			check_coord = king_coord
+
+		return [piece_coord, destination, check_coord, result]
 
 	def handle_pawn_move(self, movement):
 		# todo: pawn upgrade implementation (should be easy)
@@ -1258,20 +1263,6 @@ class Game:
 				piece_coord = coords[0]
 			elif len(coords) == 2:
 				raise InvalidNotationException('This movement should not find two rooks')
-				'''
-				if coords[0][0] == coords[1][0]:
-					known_col = self.get_column(movement[1 + add])
-					if coords[0][1] == known_col:
-						piece_coord = coords[0]
-					else:
-						piece_coord = coords[1]
-				else:
-					known_row = self.get_row(movement[3 + add])
-					if coords[0][0] == known_row:
-						piece_coord = coords[0]
-					else:
-						piece_coord = coords[1]
-				'''
 			else:
 				raise Exception('Something went wrong. This should not have been called')
 

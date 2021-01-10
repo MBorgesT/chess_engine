@@ -7,6 +7,8 @@ LIGHT_SELECTED_COLOR = (150, 214, 212)
 
 SQUARE_SIZE = 200
 
+CHECK = Image.open('sprites/check.png').convert('RGBA')
+
 WK = Image.open('sprites/white_king.png').convert('RGBA')
 WQ = Image.open('sprites/white_queen.png').convert('RGBA')
 WR = Image.open('sprites/white_rook.png').convert('RGBA')
@@ -38,7 +40,7 @@ pieces_images.update({'bn': BN})
 pieces_images.update({'bp': BP})
 
 
-def draw_board(board, origin_square = None, destination_square = None):
+def draw_board(board, origin_square=None, destination_square=None, check=None):
 
 	def get_xy(i, j):
 		return (
@@ -71,11 +73,14 @@ def draw_board(board, origin_square = None, destination_square = None):
 			else:
 				color = next_color
 
-			draw.rectangle(xy = get_xy(i, j), fill = color)
+			draw.rectangle(xy=get_xy(i, j), fill=color)
+
+			if check is not None and check[0] == i and check[1] == j:
+				img.alpha_composite(CHECK, dest=(j * SQUARE_SIZE, i * SQUARE_SIZE))
 
 			piece = get_piece_image(board[i][j])
 			if piece is not None:
-				img.alpha_composite(piece, dest = (j * SQUARE_SIZE, i * SQUARE_SIZE))
+				img.alpha_composite(piece, dest=(j * SQUARE_SIZE, i * SQUARE_SIZE))
 
 			if next_color == LIGHT_COLOR:
 				next_color = DARK_COLOR
@@ -86,6 +91,5 @@ def draw_board(board, origin_square = None, destination_square = None):
 			next_color = DARK_COLOR
 		else:
 			next_color = LIGHT_COLOR
-
 
 	img.save('board.png')

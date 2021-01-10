@@ -1,4 +1,4 @@
-file = open('airthingsmastp20.pgn', 'r', encoding='utf-8')
+file = open('haindan20.pgn', 'r', encoding='utf-8')
 txt = file.read()
 file.close()
 
