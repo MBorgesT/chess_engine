@@ -86,10 +86,10 @@ class Game:
 	def is_normal_movement(self, movement, add):
 		return movement[1 + add].isalpha() and movement[2 + add].isdigit()
 
-	def is_same_row_movement(self, movement, add):
+	def is_known_row_move(self, movement, add):
 		return movement[1].isalpha() and movement[2 + add].isalpha()
 
-	def is_same_col_movement(self, movement, add):
+	def is_known_col_move(self, movement, add):
 		return movement[1].isdigit() and movement[2 + add].isalpha()
 
 	def is_move_capture(self, move):
@@ -140,23 +140,28 @@ class Game:
 		else:
 			return (destination_row - 1, origin_column)
 
-	def find_rook(self, color, destination):
+	def find_rook(self, color, destination, known_row=None, known_col=None):
 		found = False
 		rook_coords = []
 
+		if known_row is not None and known_col is not None:
+			raise Exception('This should not happen. Take a look at the other functions for errors')
+
 		# going throw columns
-		for col in range(8):
-			piece = self.board[destination[0]][col]
-			if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == color:
-				found = True
-				rook_coords.append((destination[0], col))
+		if known_col is None:
+			for col in range(8):
+				piece = self.board[destination[0]][col]
+				if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == color:
+					found = True
+					rook_coords.append((destination[0], col))
 
 		# going throw rows
-		for row in range(8):
-			piece = self.board[row][destination[1]]
-			if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == color:
-				found = True
-				rook_coords.append((row, destination[1]))
+		if known_row is None:
+			for row in range(8):
+				piece = self.board[row][destination[1]]
+				if piece is not None and piece[1] == 'r' and self.get_piece_color(piece) == color:
+					found = True
+					rook_coords.append((row, destination[1]))
 
 		if found:
 			return rook_coords
@@ -1201,6 +1206,7 @@ class Game:
 	def handle_rook_move(self, movement, add):
 		piece_coord = None
 		destination = None
+		coords = None
 		if self.is_normal_movement(movement, add):
 			# not in the same column or row
 			destination = (self.get_row(movement[2 + add]), self.get_column(movement[1 + add]))
@@ -1225,17 +1231,35 @@ class Game:
 			else:
 				raise Exception('Something went wrong. This should not have been called')
 		else:
-			if self.is_same_row_movement(movement, add):
+			if self.is_known_row_move(movement, add):
 				# in the same row
 				destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
-				piece_coord = (self.get_row(movement[3 + add]), self.get_column(movement[1]))
+				coords = self.find_rook(self.turn, destination, known_row=self.get_row(movement[3 + add]))
 
-			elif self.is_same_col_movement(movement, add):
+			elif self.is_known_col_move(movement, add):
 				# in the same column
 				destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
-				piece_coord = (self.get_row(movement[1]), self.get_column(movement[2 + add]))
+				coords = self.find_rook(self.turn, destination, known_col=self.get_column(movement[1 + add]))
 			else:
 				raise IlegalMoveException('Invalid movement')
+
+			if len(coords) == 1:
+				piece_coord = coords[0]
+			elif len(coords) == 2:
+				if coords[0][0] == coords[1][0]:
+					known_col = self.get_column(movement[1 + add])
+					if coords[0][1] == known_col:
+						piece_coord = coords[0]
+					else:
+						piece_coord = coords[1]
+				else:
+					known_row = self.get_row(movement[3 + add])
+					if coords[0][0] == known_row:
+						piece_coord = coords[0]
+					else:
+						piece_coord = coords[1]
+			else:
+				raise Exception('Something went wrong. This should not have been called')
 
 			self.validate_rook_move(piece_coord, destination, self.is_move_capture(movement))
 
@@ -1257,7 +1281,7 @@ class Game:
 			else:
 				# checking for 0 is already done in the find_knight function
 				raise IlegalMoveException('Please inform which one of the knights you want to move')
-		elif self.is_same_row_movement(movement, add):
+		elif self.is_known_row_move(movement, add):
 			# in the same row
 			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
 			col = self.get_column(movement[1])
@@ -1274,7 +1298,7 @@ class Game:
 					raise IlegalMoveException("Couldn't find a knight with the specified command")
 			else:
 				raise IlegalMoveException('The number of knights found is more than two:', len(coords))
-		elif self.is_same_col_movement(movement, add):
+		elif self.is_known_col_move(movement, add):
 			destination = (self.get_row(movement[3 + add]), self.get_column(movement[2 + add]))
 			row = self.get_row(movement[1])
 			coords = self.find_knight(color=self.turn, destination=destination)
